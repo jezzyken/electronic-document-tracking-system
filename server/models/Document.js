@@ -8,7 +8,22 @@ const documentSchema = new mongoose.Schema(
       type: String,
       default: "incoming",
     },
-    fileUrl: { type: String, required: true },
+    fileUrl: {
+      type: String,
+      required: true,
+    },
+    cloudinaryPublicId: {
+      type: String,
+      required: true,
+    },
+    fileType: {
+      type: String,
+      required: true,
+    },
+    fileFormat: {
+      type: String,
+      required: true,
+    },
     uploadedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",

@@ -25,8 +25,6 @@ export default {
   },
 
   downloadDocument(id) {
-    return api.get(`/document/${id}/download`, {
-      responseType: "blob",
-    });
+    return api.get(`/document/${id}/download`);
   },
 };

@@ -119,31 +119,25 @@ export default {
       }
     },
 
-    async downloadDocument({ commit }, item) {
+    async downloadDocument({ commit }, document) {
       try {
         commit("SET_LOADING", true);
         commit("CLEAR_ERROR");
-        const response = await documentService.downloadDocument(item._id);
+        
+        const data = await documentService.downloadDocument(document._id);
 
-        const ext = item.name.split(".").pop().toLowerCase();
-        const types = {
-          pdf: "application/pdf",
-          doc: "application/msword",
-          docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-          txt: "text/plain",
-          zip: "application/zip",
-        };
-        const fileType = types[ext] || "application/octet-stream";
-
-        const blob = new Blob([response.data], { type: fileType });
-        const url = window.URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = item.name;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        window.URL.revokeObjectURL(url);
+        return data
+        // const url = window.URL.createObjectURL(blob);
+        
+        // const link = document.createElement('a');
+        // link.href = url;
+        // link.download = `${document.name}.${document.fileFormat}`;
+        
+        // document.body.appendChild(link);
+        // link.click();
+        // document.body.removeChild(link);
+        
+        // window.URL.revokeObjectURL(url);
       } catch (error) {
         commit("SET_ERROR", error.response?.data?.message || "Download failed");
         throw error;

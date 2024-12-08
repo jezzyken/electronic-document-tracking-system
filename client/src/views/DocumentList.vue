@@ -174,6 +174,7 @@
 <script>
 import { mapState, mapActions } from "vuex";
 import { format } from "date-fns";
+import { saveAs } from "file-saver";
 
 export default {
   data: () => ({
@@ -299,17 +300,20 @@ export default {
     },
 
     getStatusCount(status) {
-  if (!this.documents) return 0;
-  
-  if (status === 'incoming') {
-    return this.documents.filter((doc) => {
-      const isUploader = this.isCurrentUserUploader(doc);
-      return !isUploader && (doc.status === 'incoming' || doc.status === 'outgoing');
-    }).length;
-  }
-  
-  return 0;
-},
+      if (!this.documents) return 0;
+
+      if (status === "incoming") {
+        return this.documents.filter((doc) => {
+          const isUploader = this.isCurrentUserUploader(doc);
+          return (
+            !isUploader &&
+            (doc.status === "incoming" || doc.status === "outgoing")
+          );
+        }).length;
+      }
+
+      return 0;
+    },
 
     formatDate(date) {
       return format(new Date(date), "MMM dd, yyyy");
@@ -360,12 +364,9 @@ export default {
         this.deleting = false;
       }
     },
+
     async download(item) {
-      try {
-        await this.downloadDocument(item);
-      } catch (error) {
-        console.error("Download failed:", error);
-      }
+      saveAs(item.fileUrl, `${item.name}.${item.fileFormat}`);
     },
   },
 
