@@ -4,48 +4,23 @@
       <v-card-title class="d-flex align-center py-3 px-4">
         <h2 class="text-h5 font-weight-bold mb-0">Role Management</h2>
         <v-spacer></v-spacer>
-        <v-btn
-          color="primary"
-          @click="openCreateModal"
-          prepend-icon="mdi-plus"
-          class="px-4"
-        >
+        <v-btn color="primary" @click="openCreateModal" prepend-icon="mdi-plus" class="px-4">
           Create New Role
         </v-btn>
       </v-card-title>
 
       <v-divider></v-divider>
 
-      <v-data-table
-        :headers="headers"
-        :items="roles"
-        :loading="loading"
-        :search="search"
-        :items-per-page="10"
+      <v-data-table :headers="headers" :items="roles" :loading="loading" :search="search" :items-per-page="10"
         :footer-props="{
           'items-per-page-options': [5, 10, 15, 20],
           showFirstLastPage: true,
-        }"
-        class="elevation-0"
-      >
-
+        }" class="elevation-0">
         <template v-slot:top>
           <v-toolbar flat class="px-4 d-flex justify-end">
-            <v-text-field
-              v-model="search"
-              prepend-inner-icon="mdi-magnify"
-              label="Search roles..."
-              hide-details
-              dense
-              outlined
-              rounded
-              class="mt-6"
-              clearable
-              @click:clear="search = ''"
-              :class="{ 'focused-field': isFocused }"
-              @focus="isFocused = true"
-              @blur="isFocused = false"
-            ></v-text-field>
+            <v-text-field v-model="search" prepend-inner-icon="mdi-magnify" label="Search roles..." hide-details dense
+              outlined rounded class="mt-6" clearable @click:clear="search = ''" :class="{ 'focused-field': isFocused }"
+              @focus="isFocused = true" @blur="isFocused = false"></v-text-field>
           </v-toolbar>
         </template>
 
@@ -54,25 +29,14 @@
         </template>
 
         <template v-slot:[`item.isActive`]="{ item }">
-          <v-chip
-            :color="item.isActive ? 'success' : 'grey'"
-            :text-color="item.isActive ? 'white' : ''"
-            small
-            label
-          >
+          <v-chip :color="item.isActive ? 'success' : 'grey'" :text-color="item.isActive ? 'white' : ''" small label>
             {{ item.isActive ? "Active" : "Inactive" }}
           </v-chip>
         </template>
 
         <template v-slot:[`item.permissions`]="{ item }">
-          <v-chip
-            v-for="permission in item.permissions"
-            :key="permission"
-            class="mr-1 mb-1"
-            small
-            outlined
-            color="primary"
-          >
+          <v-chip v-for="permission in item.permissions" :key="permission" class="mr-1 mb-1" small outlined
+            color="primary">
             {{ permission }}
           </v-chip>
         </template>
@@ -80,15 +44,7 @@
         <template v-slot:[`item.actions`]="{ item }">
           <v-tooltip bottom>
             <template v-slot:activator="{ on, attrs }">
-              <v-btn
-                icon
-                small
-                color="primary"
-                @click="openEditModal(item)"
-                class="mr-2"
-                v-bind="attrs"
-                v-on="on"
-              >
+              <v-btn icon small color="primary" @click="openEditModal(item)" class="mr-2" v-bind="attrs" v-on="on">
                 <v-icon small>mdi-pencil</v-icon>
               </v-btn>
             </template>
@@ -97,14 +53,7 @@
 
           <v-tooltip bottom>
             <template v-slot:activator="{ on, attrs }">
-              <v-btn
-                icon
-                small
-                color="error"
-                @click="confirmDelete(item._id)"
-                v-bind="attrs"
-                v-on="on"
-              >
+              <v-btn icon small color="error" @click="confirmDelete(item._id)" v-bind="attrs" v-on="on">
                 <v-icon small>mdi-delete</v-icon>
               </v-btn>
             </template>
@@ -141,28 +90,13 @@
 
         <v-card-text class="pt-4">
           <v-form ref="form" v-model="valid" @submit.prevent="handleSubmit">
-            <v-text-field
-              v-model="roleForm.name"
-              label="Role Name"
-              required
-              outlined
-              dense
-              :rules="[(v) => !!v || 'Name is required']"
-            ></v-text-field>
+            <v-text-field v-model="roleForm.name" label="Role Name" required outlined dense
+              :rules="[(v) => !!v || 'Name is required']"></v-text-field>
 
-            <v-select
-              v-model="roleForm.permissions"
-              :items="availablePermissions"
-              label="Permissions"
-              multiple
-              chips
-              outlined
-              dense
-              required
-              :rules="[
+            <v-select v-model="roleForm.permissions" :items="availablePermissions" label="Permissions" multiple chips
+              outlined dense required :rules="[
                 (v) => v.length > 0 || 'At least one permission is required',
-              ]"
-            >
+              ]">
               <template v-slot:selection="{ item, index }">
                 <v-chip v-if="index < 3" small label class="mr-1">
                   {{ item }}
@@ -173,23 +107,11 @@
               </template>
             </v-select>
 
-            <v-textarea
-              v-model="roleForm.description"
-              label="Description"
-              rows="3"
-              outlined
-              dense
-              class="mt-3"
-              placeholder="Enter role description..."
-            ></v-textarea>
+            <v-textarea v-model="roleForm.description" label="Description" rows="3" outlined dense class="mt-3"
+              placeholder="Enter role description..."></v-textarea>
 
-            <v-switch
-              v-model="roleForm.isActive"
-              label="Active Status"
-              color="success"
-              class="mt-2"
-              hide-details
-            ></v-switch>
+            <v-switch v-model="roleForm.isActive" label="Active Status" color="success" class="mt-2"
+              hide-details></v-switch>
           </v-form>
         </v-card-text>
 
@@ -197,20 +119,10 @@
 
         <v-card-actions class="py-3 px-4">
           <v-spacer></v-spacer>
-          <v-btn
-            text
-            color="grey darken-1"
-            @click="closeModal"
-            :disabled="loading"
-          >
+          <v-btn text color="grey darken-1" @click="closeModal" :disabled="loading">
             Cancel
           </v-btn>
-          <v-btn
-            color="primary"
-            @click="handleSubmit"
-            :loading="loading"
-            :disabled="!valid"
-          >
+          <v-btn color="primary" @click="handleSubmit" :loading="loading" :disabled="!valid">
             {{ isEditing ? "Update" : "Create" }}
           </v-btn>
         </v-card-actions>
@@ -231,12 +143,7 @@
 
         <v-card-actions class="py-3 px-4">
           <v-spacer></v-spacer>
-          <v-btn
-            text
-            color="grey darken-1"
-            @click="showDeleteDialog = false"
-            :disabled="loading"
-          >
+          <v-btn text color="grey darken-1" @click="showDeleteDialog = false" :disabled="loading">
             Cancel
           </v-btn>
           <v-btn color="error" @click="handleDelete" :loading="loading">
@@ -247,13 +154,7 @@
     </v-dialog>
 
     <!-- Enhanced Snackbar -->
-    <v-snackbar
-      v-model="snackbar.show"
-      :color="snackbar.color"
-      :timeout="3000"
-      top
-      right
-    >
+    <v-snackbar v-model="snackbar.show" :color="snackbar.color" :timeout="3000" top right>
       {{ snackbar.text }}
       <template v-slot:action="{ attrs }">
         <v-btn text v-bind="attrs" @click="snackbar.show = false">
@@ -291,7 +192,16 @@ export default {
         { text: "Status", value: "isActive" },
         { text: "Actions", value: "actions", sortable: false },
       ],
-      availablePermissions: ["read", "write", "update", "delete"],
+      availablePermissions: [
+        "view",
+        "create",
+        "update",
+        "delete",
+        "upload_attachments",
+        "view_attachments",
+        "change_document_status",
+        "recieved_document"
+      ],
       snackbar: {
         show: false,
         text: "",
@@ -401,6 +311,7 @@ export default {
 .focused-field {
   transition: all 0.3s ease;
 }
+
 .focused-field:deep(.v-input__slot) {
   background: #f5f5f5;
 }

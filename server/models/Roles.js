@@ -1,20 +1,19 @@
 const mongoose = require("mongoose");
 const Schema = mongoose.Schema;
 
-const RoleSchema = new Schema(
+const roleSchema = new Schema(
   {
     name: {
       type: String,
       required: true,
       unique: true,
     },
+    description: String,
     permissions: [
       {
         type: String,
-        enum: ["read", "write", "update", "delete"],
       },
     ],
-    description: String,
     isActive: {
       type: Boolean,
       default: true,
@@ -25,6 +24,4 @@ const RoleSchema = new Schema(
   }
 );
 
-const Role = mongoose.model("Role", RoleSchema);
-
-module.exports = Role;
+module.exports = mongoose.model("Role", roleSchema);

@@ -57,8 +57,7 @@ export default {
         commit("SET_LOADING", true);
         commit("CLEAR_ERROR");
         const response = await departmentService.getDepartments();
-        console.log(response)
-        commit("SET_DEPARTMENTS", response.data.data.departments);
+        commit("SET_DEPARTMENTS", response.data);
       } catch (error) {
         commit(
           "SET_ERROR",
@@ -75,7 +74,7 @@ export default {
         commit("SET_LOADING", true);
         commit("CLEAR_ERROR");
         const response = await departmentService.getDepartment(id);
-        commit("SET_CURRENT_DEPARTMENT", response.data.data.department);
+        commit("SET_CURRENT_DEPARTMENT", response.data);
       } catch (error) {
         commit(
           "SET_ERROR",
@@ -88,16 +87,14 @@ export default {
     },
 
     async createDepartment({ commit }, departmentData) {
-
-      console.log(departmentData)
       try {
         commit("SET_LOADING", true);
         commit("CLEAR_ERROR");
         const response = await departmentService.createDepartment(
           departmentData
         );
-        commit("ADD_DEPARTMENT", response.data.data.department);
-        return response.data.data.department;
+        commit("ADD_DEPARTMENT", response.data);
+        return response.data;
       } catch (error) {
         commit(
           "SET_ERROR",
@@ -117,8 +114,8 @@ export default {
           id,
           departmentData
         );
-        commit("UPDATE_DEPARTMENT", response.data.data.department);
-        return response.data.data.department;
+        commit("UPDATE_DEPARTMENT", response.data);
+        return response.data;
       } catch (error) {
         commit(
           "SET_ERROR",

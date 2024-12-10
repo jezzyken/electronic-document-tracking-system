@@ -11,6 +11,11 @@ Vue.config.productionTip = false;
 Vue.use(VueApexCharts);
 Vue.component("apexchart", VueApexCharts);
 
+Vue.filter("capitalize", function (value) {
+  if (!value) return "";
+  return value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
+});
+
 new Vue({
   router,
   store,

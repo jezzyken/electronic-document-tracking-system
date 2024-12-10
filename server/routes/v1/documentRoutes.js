@@ -1,247 +1,251 @@
 const express = require("express");
 const router = express.Router();
-const multer = require("multer");
-const Document = require("../../models/Document");
-const { auth, authorize } = require("../../middleware/authMiddleware");
-const ObjectId = require("mongoose").Types.ObjectId;
-const cloudinary = require('cloudinary').v2;
-const {
-  uploadToCloudinary,
-  deleteFromCloudinary,
-  getDownloadUrl
-} = require("../../utils/cloudinary");
-const axios = require("axios")
+const { Document } = require("../../models");
+const { DocumentTracking } = require("../../models");
+const upload = require("../../middleware/upload");
+const { uploadToCloudinary } = require("../../utils/cloudinary");
 
-const storage = multer.diskStorage({
-  destination: "uploads/",
-  filename: (req, file, cb) => {
-    cb(null, Date.now() + "-" + file.originalname);
-  },
-});
-
-const upload = multer({
-  storage,
-  limits: { fileSize: 10 * 1024 * 1024 },
-});
-
-// routes/documents.js
-
-router.post("/upload", auth, upload.single("file"), async (req, res) => {
+router.get("/documents", async (req, res) => {
   try {
-    res.setHeader("Content-Type", "application/json");
-    res.setHeader("Transfer-Encoding", "chunked");
+    const documents = await Document.find()
+      .populate("user")
+      .populate("department")
+      .lean();
 
-    const uploadResult = await uploadToCloudinary(
-      req.file.path,
-      req.file.originalname
+    const documentsWithTracking = await Promise.all(
+      documents.map(async (doc) => {
+        const tracking = await DocumentTracking.find({ documentId: doc._id })
+          .populate("fromDepartment")
+          .populate("toDepartment")
+          .populate("sentBy")
+          .populate("receivedBy")
+          .lean();
+        return { ...doc, tracking };
+      })
     );
 
-    const doc = new Document({
-      name: req.body.name,
-      department: req.body.department,
-      fileUrl: uploadResult.url,
-      cloudinaryPublicId: uploadResult.publicId,
-      fileType: uploadResult.resourceType,
-      fileFormat: uploadResult.format,
-      uploadedBy: req.user._id,
+    console.log(documentsWithTracking);
+
+    res.json(documentsWithTracking);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post("/documents", upload.array("attachments"), async (req, res) => {
+  const session = await Document.startSession();
+  session.startTransaction();
+
+  try {
+    const documentData = JSON.parse(req.body.documents);
+    const tracking = JSON.parse(req.body.tracking);
+
+    const document = new Document({
+      title: documentData.title,
+      description: documentData.description,
+      user: documentData.user,
+      status: "Under Review",
+      priority: documentData.priority,
+      dueDate: documentData.dueDate,
+      department: documentData.department,
+      createdAt: new Date(),
     });
+    await document.save({ session });
 
-    await doc.save();
+    if (req.files && req.files.length > 0) {
+      const attachments = await Promise.all(
+        req.files.map(async (file, index) => {
+          const uploadResult = await uploadToCloudinary(
+            file.path,
+            file.originalname
+          );
+          return {
+            title: file.originalname,
+            fileUrl: uploadResult.url,
+            fileType: file.mimetype,
+            fileSize: file.size,
+          };
+        })
+      );
 
-    const populatedDoc = await Document.findById(doc._id)
-      .populate("uploadedBy", "username email department")
-      .populate("updatedBy", "username email department");
-
-    res.json(populatedDoc);
-  } catch (err) {
-    console.log(err)
-    res.status(500).json({ error: err.message });
-  }
-});
-router.get("/", auth, async (req, res) => {
-  try {
-    const { department } = req.query;
-    const userId = req.user._id;
-    const userRole = req.user.role.name;
-
-    console.log(userRole);
-
-    let filter = {};
-
-    if (userRole !== "Admin") {
-      filter = {
-        $or: [
-          { uploadedBy: new ObjectId(userId) },
-          department
-            ? { department: department }
-            : { uploadedBy: new ObjectId(userId) },
-        ],
-      };
-    }
-
-    const docs = await Document.find(filter)
-      .sort("-createdAt")
-      .populate("uploadedBy", "username email department")
-      .populate("updatedBy", "username email department");
-
-    res.json(docs);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-router.get("/:id", async (req, res) => {
-  try {
-    const doc = await Document.findById(req.params.id)
-      .populate("uploadedBy", "username email department")
-      .populate("updatedBy", "username email department");
-    if (!doc) return res.status(404).json({ error: "Document not found" });
-    res.json(doc);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-router.get("/:id/download", async (req, res) => {
-
-  try {
-    const doc = await Document.findById(req.params.id);
-    if (!doc) return res.status(404).json({ error: "Document not found" });
-
-    // Generate signed URL for raw file
-    const timestamp = Math.floor(Date.now() / 1000);
-    const signedUrl = cloudinary.utils.api_sign_request({
-      timestamp: timestamp,
-      public_id: doc.cloudinaryPublicId,
-      resource_type: 'raw'
-    }, process.env.CLOUDINARY_API_SECRET);
-
-    const downloadUrl = `https://res.cloudinary.com/${process.env.CLOUDINARY_CLOUD_NAME}/raw/upload/s--${signedUrl}--/${doc.cloudinaryPublicId}`;
-
-    console.log(downloadUrl)
-
-    res.json({ signedUrl: downloadUrl });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-
-  
-  //   const doc = await Document.findById(req.params.id);
-
-  //   console.log(doc)
-
-  //   return
-
-  // const downloadUrl = await getDownloadUrl(publicId, 'raw');
-
-  // try {
-  //   const doc = await Document.findById(req.params.id);
-  //   if (!doc) return res.status(404).json({ error: "Document not found" });
-
-  //   // Generate signed URL for raw file
-  //   const timestamp = Math.floor(Date.now() / 1000);
-  //   const signedUrl = cloudinary.utils.api_sign_request({
-  //     timestamp: timestamp,
-  //     public_id: doc.cloudinaryPublicId,
-  //     resource_type: 'raw'
-  //   }, process.env.CLOUDINARY_API_SECRET);
-
-  //   const downloadUrl = `https://res.cloudinary.com/${process.env.CLOUDINARY_CLOUD_NAME}/raw/upload/s--${signedUrl}--/${doc.cloudinaryPublicId}`;
-
-  //   res.json({ signedUrl: downloadUrl });
-  // } catch (err) {
-  //   res.status(500).json({ error: err.message });
-  // }
-
-  // try {
-  //   const doc = await Document.findById(req.params.id);
-  //   if (!doc) return res.status(404).json({ error: "Document not found" });
-
-  //   // Generate signed URL with Cloudinary
-  //   const signedUrl = cloudinary.utils.private_download_url(doc.cloudinaryPublicId, 
-  //     doc.fileFormat, {
-  //       expiresAt: Math.floor(Date.now() / 1000) + 300, // 5 minutes from now
-  //       resource_type: 'raw'
-  //   });
-
-  //   console.log('Signed URL:', signedUrl);
-
-  //   const response = await axios({
-  //     method: "get",
-  //     url: signedUrl,
-  //     responseType: "arraybuffer"
-  //   });
-
-  //   res.setHeader("Content-Type", "application/octet-stream");
-  //   res.setHeader(
-  //     "Content-Disposition",
-  //     `attachment; filename="${encodeURIComponent(doc.name)}.${doc.fileFormat}"`
-  //   );
-
-  //   res.send(response.data);
-  // } catch (err) {
-  //   console.error('Download error:', {
-  //     message: err.message,
-  //     stack: err.stack
-  //   });
-  //   res.status(500).json({ error: err.message });
-  // }
-});
-
-// router.get("/:id/download", async (req, res) => {
-//   try {
-//     const doc = await Document.findById(req.params.id);
-//     if (!doc) return res.status(404).json({ error: "Document not found" });
-//     res.download(doc.fileUrl, doc.name);
-//   } catch (err) {
-//     res.status(500).json({ error: err.message });
-//   }
-// });
-
-router.patch("/:id/status", auth, async (req, res) => {
-  try {
-    const { status, remarks } = req.body;
-
-    const doc = await Document.findByIdAndUpdate(
-      req.params.id,
-      {
-        $set: {
-          status: status,
-          remarks: remarks,
-          updatedBy: req.user._id,
+      const trackingData = {
+        documentId: document._id,
+        fromDepartment: documentData.department,
+        toDepartment: tracking.toDepartment,
+        sentBy: documentData.user,
+        sentAt: new Date(),
+        receivedBy: null,
+        receivedAt: null,
+        status: "Under Review",
+        comments: tracking.comments,
+        documents: {
+          attachments,
         },
-      },
-      { new: true }
-    )
-      .populate("uploadedBy", "username email department")
-      .populate("updatedBy", "username email department");
+      };
 
-    if (!doc) {
-      return res.status(404).json({ error: "Document not found" });
+      const documentTracking = new DocumentTracking(trackingData);
+      await documentTracking.save({ session });
     }
 
-    res.json(doc);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+    await session.commitTransaction();
+
+    const completeDocument = await Document.findById(document._id)
+      .populate("user")
+      .populate("department")
+      .lean();
+
+    const trackingResult = await DocumentTracking.find({
+      documentId: document._id,
+    })
+      .populate("fromDepartment")
+      .populate("toDepartment")
+      .populate("sentBy")
+      .populate("receivedBy")
+      .lean();
+
+    res.status(201).json({ ...completeDocument, tracking: trackingResult });
+  } catch (error) {
+    await session.abortTransaction();
+    res.status(400).json({ error: error.message });
+  } finally {
+    session.endSession();
   }
 });
 
-router.delete("/:id", auth, async (req, res) => {
+router.post(
+  "/documents/:id/tracking",
+  upload.array("attachments"),
+  async (req, res) => {
+    const session = await Document.startSession();
+    session.startTransaction();
+
+    try {
+      const documentId = req.params.id;
+      const trackingData = req.body;
+
+      let attachments = [];
+      if (req.files && req.files.length > 0) {
+        attachments = await Promise.all(
+          req.files.map(async (file, index) => {
+            const uploadResult = await uploadToCloudinary(
+              file.path,
+              file.originalname
+            );
+            return {
+              title: file.originalname,
+              fileUrl: uploadResult.url,
+              fileType: file.mimetype,
+              fileSize: file.size,
+            };
+          })
+        );
+      }
+
+      const tracking = new DocumentTracking({
+        documentId,
+        fromDepartment: trackingData.fromDepartment,
+        toDepartment: trackingData.toDepartment,
+        sentBy: trackingData.sentBy,
+        sentAt: new Date(),
+        receivedBy: null,
+        receivedAt: null,
+        status: trackingData.status,
+        comments: trackingData.comments,
+        documents: {
+          attachments,
+        },
+      });
+
+      await tracking.save({ session });
+
+      await Document.findByIdAndUpdate(
+        documentId,
+        { status: trackingData.status },
+        { session }
+      );
+
+      await session.commitTransaction();
+
+      const populatedTracking = await DocumentTracking.findById(tracking._id)
+        .populate("fromDepartment")
+        .populate("toDepartment")
+        .populate("sentBy")
+        .populate("receivedBy");
+
+      res.status(201).json(populatedTracking);
+    } catch (error) {
+      await session.abortTransaction();
+      res.status(400).json({ error: error.message });
+    } finally {
+      session.endSession();
+    }
+  }
+);
+
+router.get("/documents/:id", async (req, res) => {
   try {
-    const doc = await Document.findById(req.params.id);
-    if (!doc) {
+    const document = await Document.findById(req.params.id)
+      .populate("user")
+      .populate("department")
+      .lean();
+
+    if (!document) {
       return res.status(404).json({ error: "Document not found" });
     }
 
-    if (doc.cloudinaryPublicId) {
-      await deleteFromCloudinary(doc.cloudinaryPublicId);
-    }
+    const tracking = await DocumentTracking.find({ documentId: document._id })
+      .populate("fromDepartment")
+      .populate("toDepartment")
+      .populate("sentBy")
+      .populate("receivedBy")
+      .lean();
 
-    await Document.findByIdAndDelete(req.params.id);
-    res.sendStatus(204);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.json({ ...document, tracking });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 });
+
+router.patch(
+  "/documents/:documentId/tracking/:trackingId",
+  async (req, res) => {
+    const session = await Document.startSession();
+    session.startTransaction();
+
+    try {
+      const { documentId, trackingId } = req.params;
+      const { receivedBy, receivedAt } = req.body;
+
+      const updatedTracking = await DocumentTracking.findByIdAndUpdate(
+        trackingId,
+        {
+          receivedBy,
+          receivedAt,
+        },
+        {
+          new: true,
+          session,
+          runValidators: true,
+        }
+      )
+        .populate("fromDepartment")
+        .populate("toDepartment")
+        .populate("sentBy")
+        .populate("receivedBy");
+
+      if (!updatedTracking) {
+        throw new Error("Tracking record not found");
+      }
+
+      await session.commitTransaction();
+      res.json(updatedTracking);
+    } catch (error) {
+      await session.abortTransaction();
+      res.status(400).json({ error: error.message });
+    } finally {
+      session.endSession();
+    }
+  }
+);
 
 module.exports = router;

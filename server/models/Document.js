@@ -1,43 +1,49 @@
 const mongoose = require("mongoose");
+const Schema = mongoose.Schema;
 
-const documentSchema = new mongoose.Schema(
+const documentSchema = new Schema(
   {
-    name: { type: String, required: true },
-    department: { type: String, required: true },
+    title: {
+      type: String,
+      required: true,
+    },
+    description: {
+      type: String,
+      required: true,
+    },
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
     status: {
       type: String,
-      default: "incoming",
-    },
-    fileUrl: {
-      type: String,
+      default: "Under Review",
       required: true,
     },
-    cloudinaryPublicId: {
+    priority: {
       type: String,
+      enum: ["High", "Medium", "Low"],
       required: true,
     },
-    fileType: {
-      type: String,
+    dueDate: {
+      type: Date,
       required: true,
     },
-    fileFormat: {
-      type: String,
-      required: true,
-    },
-    uploadedBy: {
+    department: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-    },
-    updatedBy: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-    },
-    remarks: {
-      type: String,
-      default: "",
+      ref: "Department",
+      required: true,
     },
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+  }
 );
+
+documentSchema.index({ title: 1 });
+documentSchema.index({ status: 1 });
+documentSchema.index({ priority: 1 });
+documentSchema.index({ dueDate: 1 });
 
 module.exports = mongoose.model("Document", documentSchema);

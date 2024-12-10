@@ -1,15 +1,7 @@
 <template>
   <v-app>
-    <v-navigation-drawer
-      v-model="drawer"
-      app
-      :mini-variant.sync="mini"
-      width="240"
-      mini-variant-width="64"
-      :temporary="$vuetify.breakpoint.mobile"
-      color="#a52a2a"
-      dark
-    >
+    <v-navigation-drawer v-model="drawer" app :mini-variant.sync="mini" width="240" mini-variant-width="64"
+      :temporary="$vuetify.breakpoint.mobile" color="#a52a2a" dark>
       <v-list dense class="drawer-list">
         <v-list-item>
           <v-list-item-icon>
@@ -22,14 +14,8 @@
 
         <template v-for="item in menuItems">
           <!-- Regular menu item -->
-          <v-list-item
-            v-if="!item.children"
-            :key="item.title"
-            :to="item.to"
-            link
-            class="drawer-item white--text"
-            :class="{ 'active-item': $route.path === item.to }"
-          >
+          <v-list-item v-if="!item.children" :key="item.title" :to="item.to" link class="drawer-item white--text"
+            :class="{ 'active-item': $route.path === item.to }">
             <v-list-item-icon>
               <v-icon class="white--text">{{ item.icon }}</v-icon>
             </v-list-item-icon>
@@ -41,13 +27,8 @@
           </v-list-item>
 
           <!-- Group with sub-items -->
-          <v-list-group
-            v-else
-            :key="item.title"
-            :prepend-icon="item.icon"
-            class="drawer-item"
-            :value="isGroupActive(item)"
-          >
+          <v-list-group v-else :key="item.title" :prepend-icon="item.icon" class="drawer-item"
+            :value="isGroupActive(item)">
             <template v-slot:activator>
               <v-list-item-content>
                 <v-list-item-title class="white--text">{{
@@ -56,14 +37,8 @@
               </v-list-item-content>
             </template>
 
-            <v-list-item
-              v-for="child in item.children"
-              :key="child.title"
-              :to="child.to"
-              link
-              class="drawer-sub-item white--text"
-              :class="{ 'active-item': $route.path === child.to }"
-            >
+            <v-list-item v-for="child in item.children" :key="child.title" :to="child.to" link
+              class="drawer-sub-item white--text" :class="{ 'active-item': $route.path === child.to }">
               <v-list-item-icon>
                 <v-icon class="white--text">{{ child.icon }}</v-icon>
               </v-list-item-icon>
@@ -79,13 +54,8 @@
     </v-navigation-drawer>
 
     <v-app-bar app color="white" elevation="1">
-      <v-app-bar-nav-icon
-        @click.stop="toggleDrawer"
-        color="#a52a2a"
-      ></v-app-bar-nav-icon>
-      <v-toolbar-title class="brown--text text--darken-4"
-        >  {{capitalizedRouteName}}</v-toolbar-title
-      >
+      <v-app-bar-nav-icon @click.stop="toggleDrawer" color="#a52a2a"></v-app-bar-nav-icon>
+      <v-toolbar-title class="brown--text text--darken-4"> {{ capitalizedRouteName }}</v-toolbar-title>
       <v-spacer></v-spacer>
       <v-menu offset-y>
         <template v-slot:activator="{ on, attrs }">
@@ -94,11 +64,7 @@
           </v-btn>
         </template>
         <v-list>
-          <v-list-item
-            v-for="item in accountMenu"
-            :key="item.title"
-            @click="handleAction(item.action)"
-          >
+          <v-list-item v-for="item in accountMenu" :key="item.title" @click="handleAction(item.action)">
             <v-list-item-icon>
               <v-icon>{{ item.icon }}</v-icon>
             </v-list-item-icon>
@@ -150,7 +116,7 @@ export default {
         ],
       },
       {
-        title: "Users",
+        title: "Admin",
         icon: "mdi-account-group",
         children: [
           {
@@ -164,9 +130,14 @@ export default {
             to: "/user-roles",
           },
           {
-            title: "Receipts",
+            title: "Departments",
             icon: "mdi-receipt",
-            to: "/",
+            to: "/departments",
+          },
+          {
+            title: "Status",
+            icon: "mdi-receipt",
+            to: "/status",
           },
         ],
       },
@@ -188,10 +159,10 @@ export default {
   }),
 
   computed: {
-  capitalizedRouteName() {
-    return this.$route.name.charAt(0).toUpperCase() + this.$route.name.slice(1);
-  }
-},
+    capitalizedRouteName() {
+      return this.$route.name.charAt(0).toUpperCase() + this.$route.name.slice(1);
+    }
+  },
 
   methods: {
     ...mapActions("auth", ["logout"]),
@@ -262,7 +233,7 @@ export default {
   color: white !important;
 }
 
-.v-list-group--active > .v-list-group__header {
+.v-list-group--active>.v-list-group__header {
   background-color: rgba(255, 255, 255, 0.08) !important;
 }
 

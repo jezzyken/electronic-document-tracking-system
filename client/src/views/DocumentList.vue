@@ -1,384 +1,685 @@
+<!-- DocumentTrackingPage.vue -->
 <template>
-  <div class="ma-4">
-    <v-card elevation="2" class="rounded-lg">
-      <v-card-title
-        class="d-flex justify-space-between align-center pa-4 bg-grey-lighten-4"
-      >
-        <span class="text-h5 font-weight-medium">Documents</span>
-        <v-btn
-          color="primary"
-          :to="{ name: 'uploads' }"
-          prepend-icon="mdi-upload"
-          class="text-none"
-        >
-          Upload Document
-        </v-btn>
-      </v-card-title>
-
-      <v-tabs v-model="activeTab" background-color="primary" dark>
-        <v-tab :value="0"> All </v-tab>
-        <v-tab
-          v-for="status in statuses"
-          :key="status.value"
-          :value="status.value"
-        >
-          {{ status.text }}
-          <v-badge
-            :content="getStatusCount(status.value)"
-            :value="getStatusCount(status.value)"
-            color="success"
-            class="ml-2"
-          ></v-badge>
-        </v-tab>
-      </v-tabs>
-
-      <v-card-text>
-        <v-row>
+  <v-container fluid>
+    <v-card>
+      <v-card-title>
+        <v-row align="center" justify="space-between">
           <v-col cols="12" sm="4">
-            <v-select
-              v-model="filters.department"
-              :items="departments"
-              label="Department"
-              clearable
-            ></v-select>
+            <v-btn color="primary" @click="showNewDocumentDialog = true">
+              <v-icon left>mdi-plus</v-icon>
+              New Document
+            </v-btn>
           </v-col>
           <v-col cols="12" sm="4">
-            <v-text-field
-              v-model="search"
-              label="Search"
-              prepend-inner-icon="mdi-magnify"
-              clearable
-            ></v-text-field>
+            <v-text-field v-model="search" append-icon="mdi-magnify" label="Search Documents" single-line hide-details
+              dense outlined></v-text-field>
           </v-col>
         </v-row>
-      </v-card-text>
+      </v-card-title>
 
-      <v-data-table
-        :headers="headers"
-        :items="filteredDocuments"
-        :loading="loading"
-        :search="search"
-        :items-per-page="10"
-      >
-        <template v-slot:item.status="{ item }">
-          <v-chip :color="getStatusColor(getDisplayStatus(item))" small>
-            {{ getDisplayStatus(item) }}
-          </v-chip>
-        </template>
+      <v-tabs v-model="activeTab">
+        <v-tab>All Documents</v-tab>
+        <v-tab>Tracking History</v-tab>
+        <v-tab>Document Details</v-tab>
+      </v-tabs>
 
-        <template v-slot:item.createdAt="{ item }">
-          {{ formatDate(item.createdAt) }}
-        </template>
-        <template v-slot:item.actions="{ item }">
-          <div class="d-flex">
-            <v-tooltip bottom>
-              <template v-slot:activator="{ on, attrs }">
-                <v-btn
-                  icon
-                  small
-                  color="primary"
-                  class="mr-1"
-                  v-bind="attrs"
-                  v-on="on"
-                  @click="download(item)"
-                >
-                  <v-icon size="18">mdi-download</v-icon>
-                </v-btn>
-              </template>
-              <span>Download</span>
-            </v-tooltip>
+      <v-tabs-items v-model="activeTab">
+        <v-tab-item>
+          <v-data-table :headers="headers" :items="documents" :search="search" :items-per-page="10" class="elevation-1">
+            <template v-slot:item.status="{ item }">
+              <v-chip :color="getStatusColor(item.status)" small dark>
+                {{ item.status }}
+              </v-chip>
+            </template>
+            <template v-slot:item.priority="{ item }">
+              <v-chip :color="getPriorityColor(item.priority)" small dark>
+                {{ item.priority }}
+              </v-chip>
+            </template>
+            <template v-slot:item.user.firstName="{ item }">
+              {{ getFullName(item.user) }}
+            </template>
+            <template v-slot:item.actions="{ item }">
+              <v-tooltip bottom>
+                <template v-slot:activator="{ on, attrs }">
+                  <v-btn icon small class="mr-2" v-bind="attrs" v-on="on" @click="addTrackingDialog(item)"
+                    :disabled="item.status === 'Completed'">
+                    <v-icon small>mdi-plus-circle</v-icon>
+                  </v-btn>
+                </template>
+                <span>
+                  {{
+                    item.status === "Completed"
+                      ? "Document completed - no further updates allowed"
+                      : "Add Tracking Update"
+                  }}
+                </span>
+              </v-tooltip>
 
-            <v-tooltip bottom>
-              <template v-slot:activator="{ on, attrs }">
-                <v-btn
-                  icon
-                  small
-                  color="warning"
-                  class="mr-1"
-                  v-bind="attrs"
-                  v-on="on"
-                  @click="openStatusDialog(item)"
-                >
-                  <v-icon size="18">mdi-pencil</v-icon>
-                </v-btn>
-              </template>
-              <span>Update Status</span>
-            </v-tooltip>
+              <v-tooltip bottom>
+                <template v-slot:activator="{ on, attrs }">
+                  <v-btn icon small class="mr-2" v-bind="attrs" v-on="on" @click="viewHistory(item)">
+                    <v-icon small>mdi-history</v-icon>
+                  </v-btn>
+                </template>
+                <span>View History</span>
+              </v-tooltip>
 
-            <v-tooltip bottom>
-              <template v-slot:activator="{ on, attrs }">
-                <v-btn
-                  icon
-                  small
-                  color="error"
-                  v-bind="attrs"
-                  v-on="on"
-                  @click="confirmDelete(item)"
-                >
-                  <v-icon size="18">mdi-delete</v-icon>
-                </v-btn>
-              </template>
-              <span>Delete</span>
-            </v-tooltip>
-          </div>
-        </template>
-      </v-data-table>
+              <v-tooltip bottom>
+                <template v-slot:activator="{ on, attrs }">
+                  <v-btn icon small v-bind="attrs" v-on="on" @click="viewDetails(item)">
+                    <v-icon small>mdi-eye</v-icon>
+                  </v-btn>
+                </template>
+                <span>View Details</span>
+              </v-tooltip>
+            </template>
+          </v-data-table>
+        </v-tab-item>
 
-      <v-dialog v-model="statusDialog.show" max-width="400">
-        <v-card>
-          <v-card-title>Update Status</v-card-title>
-          <v-card-text>
-            <v-select
-              v-model="statusDialog.status"
-              :items="statuses"
-              item-text="text"
-              item-value="value"
-              label="Status"
-            ></v-select>
-            <v-textarea
-              v-model="statusDialog.remarks"
-              label="Remarks"
-              rows="3"
-              placeholder="Add remarks about this status change"
-            ></v-textarea>
-          </v-card-text>
-          <v-card-actions>
-            <v-spacer></v-spacer>
-            <v-btn text @click="statusDialog.show = false">Cancel</v-btn>
-            <v-btn color="primary" @click="updateStatus" :loading="updating"
-              >Save</v-btn
-            >
-          </v-card-actions>
-        </v-card>
-      </v-dialog>
+        <v-tab-item>
+          <v-card flat>
+            <v-card-text v-if="selectedDocument">
+              <v-row class="mb-4">
+                <v-col>
+                  <v-btn color="primary" @click="showUpdateForm = true" class="ml-2"
+                    :disabled="selectedDocument.status === 'Completed'">
+                    <v-icon left>mdi-plus</v-icon>
+                    {{
+                      selectedDocument.status === "Completed"
+                        ? "Document Completed"
+                        : `Add Tracking Update for
+                    "${selectedDocument.title}"`
+                    }}
+                  </v-btn>
+                </v-col>
+              </v-row>
 
-      <v-dialog v-model="deleteDialog.show" max-width="400">
-        <v-card>
-          <v-card-title>Delete Document</v-card-title>
-          <v-card-text>
-            Are you sure you want to delete this document?
-          </v-card-text>
-          <v-card-actions>
-            <v-spacer></v-spacer>
-            <v-btn text @click="deleteDialog.show = false">Cancel</v-btn>
-            <v-btn color="error" @click="deleteDocument" :loading="deleting"
-              >Delete</v-btn
-            >
-          </v-card-actions>
-        </v-card>
-      </v-dialog>
+              <v-row>
+                <v-col cols="12" md="3">
+                  <v-card outlined>
+                    <v-card-title>Document Info</v-card-title>
+                    <v-card-text>
+                      <p>
+                        <strong>Title:</strong> {{ selectedDocument.title }}
+                      </p>
+                      <p>
+                        <strong>Status:</strong>
+                        <v-chip :color="getStatusColor(selectedDocument.status)" x-small dark class="ml-2">
+                          {{ selectedDocument.status }}
+                        </v-chip>
+                      </p>
+                      <p>
+                        <strong>Creator:</strong>
+                        {{ getFullName(this.selectedDocument.user) }}
+                      </p>
+                      <p>
+                        <strong>Current Department:</strong>
+                        {{ selectedDocument.department.name }}
+                      </p>
+                    </v-card-text>
+                  </v-card>
+                </v-col>
+                <v-col cols="12" md="9">
+                  <v-timeline dense>
+                    <v-timeline-item v-for="(track, index) in selectedDocument.tracking" :key="index"
+                      :color="getStatusColor(track.status)" small>
+                      <template v-slot:opposite>
+                        <span class="caption">{{
+                          formatDate(track.sentAt)
+                        }}</span>
+                      </template>
+                      <v-card>
+                        <v-card-title class="subtitle-2">
+                          {{ track.fromDepartment.name }} →
+                          {{ track.toDepartment.name }}
+                        </v-card-title>
+                        <v-card-text>
+                          <v-row v-if="!track.receivedAt" class="mt-2">
+                            <v-col>
+                              <v-btn color="primary" small @click="markAsReceived(index)">
+                                <v-icon left small>mdi-check-circle</v-icon>
+                                Mark as Received
+                              </v-btn>
+                            </v-col>
+                          </v-row>
+
+                          <v-row v-else class="mt-2">
+                            <v-col>
+                              <div class="subtitle-2 font-weight-medium">
+                                Received By
+                              </div>
+                              <div class="body-2">
+                                {{ track.receivedBy.fullName }}
+                              </div>
+                              <div class="caption grey--text">
+                                Received on: {{ formatDate(track.receivedAt) }}
+                              </div>
+                            </v-col>
+                          </v-row>
+
+                          <v-row class="mb-2">
+                            <v-col cols="12">
+                              <div class="subtitle-2 font-weight-medium">
+                                Submitted By
+                              </div>
+                              <div class="body-2">
+                                {{ getFullName(track.sentBy) }}
+                              </div>
+                              <div class="caption grey--text">
+                                Department: {{ track.fromDepartment.name }}
+                              </div>
+                            </v-col>
+                          </v-row>
+
+                          <div class="mb-2">
+                            <v-chip :color="getStatusColor(track.status)" x-small dark>
+                              {{ track.status }}
+                            </v-chip>
+                          </div>
+                          <p class="mb-0">{{ track.comments }}</p>
+
+                          <v-expansion-panels v-if="track.documents?.attachments?.length" flat>
+                            <v-expansion-panel>
+                              <v-expansion-panel-header>
+                                Attachments ({{
+                                  track.documents.attachments.length
+                                }})
+                              </v-expansion-panel-header>
+                              <v-expansion-panel-content>
+                                <v-list dense>
+                                  <v-list-item v-for="att in track.documents.attachments" :key="att._id">
+                                    <v-list-item-icon>
+                                      <v-icon small>mdi-file-document</v-icon>
+                                    </v-list-item-icon>
+                                    <v-list-item-content>
+                                      <v-list-item-title>{{
+                                        att.title
+                                      }}</v-list-item-title>
+                                    </v-list-item-content>
+                                    <v-list-item-action>
+                                      <v-btn text x-small color="primary" :href="att.fileUrl">
+                                        View
+                                      </v-btn>
+                                    </v-list-item-action>
+                                  </v-list-item>
+                                </v-list>
+                              </v-expansion-panel-content>
+                            </v-expansion-panel>
+                          </v-expansion-panels>
+                        </v-card-text>
+                      </v-card>
+                    </v-timeline-item>
+                  </v-timeline>
+                </v-col>
+              </v-row>
+            </v-card-text>
+
+            <v-card-text v-else>
+              <v-alert type="info">
+                Please select a document from the All Documents tab to view its
+                tracking history
+              </v-alert>
+            </v-card-text>
+          </v-card>
+        </v-tab-item>
+
+        <!-- Document Details Tab -->
+        <v-tab-item>
+          <v-card flat v-if="selectedDocument">
+            <v-card-text>
+              <v-row>
+                <v-col cols="12" md="6">
+                  <v-card outlined>
+                    <v-card-title>General Information</v-card-title>
+                    <v-list dense>
+                      <v-list-item v-for="(value, key) in documentDetails" :key="key">
+                        <v-list-item-content>
+                          <v-list-item-title>{{ key }}</v-list-item-title>
+                          <v-list-item-subtitle>{{
+                            value
+                          }}</v-list-item-subtitle>
+                        </v-list-item-content>
+                      </v-list-item>
+                    </v-list>
+                  </v-card>
+                </v-col>
+              </v-row>
+            </v-card-text>
+          </v-card>
+        </v-tab-item>
+      </v-tabs-items>
     </v-card>
-  </div>
+
+    <v-dialog v-model="showUpdateForm" max-width="800px">
+      <v-card>
+        <v-card-title>
+          Add Tracking Update for "{{ selectedDocument?.title }}"
+        </v-card-title>
+        <v-card-text>
+          <v-form ref="updateForm" v-model="formValid">
+            <v-row>
+              <v-col cols="12" md="6">
+                <v-select v-model="trackingUpdate.fromDepartment" :items="departmentList" item-text="name"
+                  item-value="_id" label="From Department" required
+                  :rules="[(v) => !!v || 'From Department is required']"></v-select>
+              </v-col>
+
+              <v-col cols="12" md="6">
+                <v-select v-model="trackingUpdate.toDepartment" :items="departmentList" item-text="name"
+                  item-value="_id" label="To Department" required
+                  :rules="[(v) => !!v || 'To Department is required']"></v-select>
+              </v-col>
+
+              <v-col cols="12" md="6">
+                <v-select v-model="trackingUpdate.status" :items="statuses" item-text="name" label="Status" required
+                  :rules="[(v) => !!v || 'Status is required']"></v-select>
+              </v-col>
+
+              <v-col cols="12" md="6">
+                <v-file-input v-model="trackingUpdate.attachments" label="Attachments" multiple chips counter
+                  show-size></v-file-input>
+              </v-col>
+
+              <v-col cols="12">
+                <v-textarea v-model="trackingUpdate.comments" label="Comments" required
+                  :rules="[(v) => !!v || 'Comments are required']" rows="3"></v-textarea>
+              </v-col>
+            </v-row>
+          </v-form>
+        </v-card-text>
+
+        <v-card-actions>
+          <v-spacer></v-spacer>
+          <v-btn color="error" text @click="showUpdateForm = false">
+            Cancel
+          </v-btn>
+          <v-btn color="success" :disabled="!formValid" @click="submitTrackingUpdate">
+            Submit Update
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <v-dialog v-model="showNewDocumentDialog" max-width="800px">
+      <v-card>
+        <v-card-title>Create New Document</v-card-title>
+        <v-card-text>
+          <v-form ref="newDocumentForm" v-model="newDocumentFormValid">
+            <v-row>
+              <v-col cols="12">
+                <v-text-field v-model="newDocument.title" label="Document Title" required
+                  :rules="[(v) => !!v || 'Title is required']"></v-text-field>
+              </v-col>
+
+              <v-col cols="12">
+                <v-textarea v-model="newDocument.description" label="Description" required
+                  :rules="[(v) => !!v || 'Description is required']"></v-textarea>
+              </v-col>
+
+              <v-col cols="12" md="6">
+                <v-select v-model="newDocument.toDepartment" :items="departmentList" item-text="name" item-value="_id"
+                  label="Forward To Department" required :rules="[
+                    (v) => !!v || 'Please select destination department',
+                  ]"></v-select>
+              </v-col>
+
+              <v-col cols="12" md="6">
+                <v-select v-model="newDocument.priority" :items="['High', 'Medium', 'Low']" label="Priority" required
+                  :rules="[(v) => !!v || 'Priority is required']"></v-select>
+              </v-col>
+
+              <v-col cols="12" md="6">
+                <v-menu v-model="dueDateMenu" :close-on-content-click="false" transition="scale-transition" offset-y
+                  min-width="auto">
+                  <template v-slot:activator="{ on, attrs }">
+                    <v-text-field v-model="newDocument.dueDate" label="Due Date" readonly v-bind="attrs" v-on="on"
+                      required :rules="[(v) => !!v || 'Due Date is required']"></v-text-field>
+                  </template>
+                  <v-date-picker v-model="newDocument.dueDate" @input="dueDateMenu = false"></v-date-picker>
+                </v-menu>
+              </v-col>
+
+              <v-col cols="12">
+                <v-textarea v-model="newDocument.comments" label="Initial Comments" rows="3" required
+                  :rules="[(v) => !!v || 'Initial comments are required']"></v-textarea>
+              </v-col>
+
+              <v-col cols="12">
+                <v-file-input v-model="newDocument.attachments" label="Documents" multiple chips counter
+                  show-size></v-file-input>
+              </v-col>
+            </v-row>
+          </v-form>
+        </v-card-text>
+
+        <v-card-actions>
+          <v-spacer></v-spacer>
+          <v-btn color="error" text @click="showNewDocumentDialog = false">
+            Cancel
+          </v-btn>
+          <v-btn color="success" :disabled="!newDocumentFormValid" @click="createNewDocument">
+            Create Document
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <v-dialog v-model="showReceiveDialog" max-width="500px">
+      <v-card>
+        <v-card-title>Confirming</v-card-title>
+        <v-card-text>
+          Are you sure you want to mark this document as received?
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer></v-spacer>
+          <v-btn color="error" text @click="showReceiveDialog = false">
+            Cancel
+          </v-btn>
+          <v-btn color="success" @click="confirmReceived">
+            Yes, Mark as Received
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+  </v-container>
 </template>
 
 <script>
-import { mapState, mapActions } from "vuex";
-import { format } from "date-fns";
-import { saveAs } from "file-saver";
+import { mapState, mapGetters, mapActions } from "vuex";
 
 export default {
+  name: "DocumentTrackingPage",
+
   data: () => ({
-    activeTab: 0,
     search: "",
-    updating: false,
-    deleting: false,
-    filters: {
-      department: null,
-    },
+    activeTab: 0,
+    selectedDocument: null,
     headers: [
-      { text: "Name", value: "name" },
-      { text: "Recipient", value: "department" },
+      { text: "Title", value: "title" },
       { text: "Status", value: "status" },
-      { text: "Remarks", value: "remarks" },
-      { text: "Uploaded By", value: "uploadedBy.username" },
-      { text: "Updated By", value: "updatedBy.username" },
-      { text: "Date", value: "createdAt" },
+      { text: "Priority", value: "priority" },
+      { text: "Creator", value: "user.firstName" },
+      { text: "Department", value: "department.name" },
+      {
+        text: "Due Date",
+        value: "dueDate",
+        format: (value) => this.formatDate(value),
+      },
       { text: "Actions", value: "actions", sortable: false },
     ],
-    departments: ["Program Head", "Librarian", "Guidance Office", "Registrar"],
-    statuses: [
-      { text: "Incoming", value: "incoming" },
-      { text: "Outgoing", value: "outgoing" },
-      { text: "Received", value: "received" },
-      { text: "Returned", value: "returned" },
-      { text: "Cancelled", value: "cancelled" },
-      { text: "Approved", value: "approved" },
-      { text: "Rejected", value: "rejected" },
-    ],
-    statusDialog: {
-      show: false,
-      status: null,
-      remarks: "",
-      document: null,
+    showNewDocumentDialog: false,
+    newDocumentFormValid: false,
+    dueDateMenu: false,
+    newDocument: {
+      title: "",
+      description: "",
+      priority: "",
+      dueDate: "",
+      attachments: [],
+      toDepartment: "",
+      comments: "",
     },
-    deleteDialog: {
-      show: false,
-      document: null,
+    showUpdateForm: false,
+    formValid: false,
+    showReceiveDialog: false,
+    receiveFormValid: false,
+    receiveInfo: {
+      fullName: "",
+      department: "",
+    },
+    selectedTrackingIndex: null,
+    trackingUpdate: {
+      fromDepartment: "",
+      toDepartment: "",
+      status: "",
+      comments: "",
+      attachments: [],
     },
   }),
 
   computed: {
-    ...mapState("documents", ["documents", "loading"]),
+    ...mapState({
+      loading: (state) => state.documents.loading,
+      error: (state) => state.documents.error,
+      departments: (state) => state.departments.departments,
+      statuses: (state) => state.statuses.statuses,
+      user: (state) => state.documents.user,
+    }),
 
-    filteredDocuments() {
-      if (!this.documents) return [];
+    ...mapGetters("documents", [
+      "documents",
+      "hasPermission",
+      "documentsByStatus",
+      "documentsByDepartment",
+    ]),
 
-      const filtered = this.documents.filter((doc) => {
-        const departmentMatch =
-          !this.filters.department ||
-          doc.department === this.filters.department;
+    departmentList() {
+      return this.departments
+        .filter((dept) => dept.isActive)
+        .map((dept) => ({
+          _id: dept._id,
+          name: dept.name,
+        }));
+    },
 
-        if (this.activeTab === 0) return departmentMatch;
+    documentDetails() {
+      if (!this.selectedDocument) return {};
+      return {
+        "Document Title": this.selectedDocument.title,
+        Description: this.selectedDocument.description,
+        "Created By": this.getFullName(this.selectedDocument.user),
+        "Created Date": this.formatDate(this.selectedDocument.createdAt),
+        "Current Status": this.selectedDocument.status,
+        "Due Date": this.formatDate(this.selectedDocument.dueDate),
+      };
+    },
 
-        const statusMap = {
-          1: "incoming",
-          2: "outgoing",
-          3: "received",
-          4: "returned",
-          5: "cancelled",
-          6: "approved",
-          7: "rejected",
-        };
+    canCreateDocument() {
+      return this.hasPermission("create");
+    },
 
-        // Get the display status based on uploader
-        let displayStatus = doc.status;
-        if (doc.status === "incoming" || doc.status === "outgoing") {
-          displayStatus = this.isCurrentUserUploader(doc)
-            ? "outgoing"
-            : "incoming";
-        }
+    canUpdateStatus() {
+      return this.hasPermission("change_document_status");
+    },
 
-        return departmentMatch && displayStatus === statusMap[this.activeTab];
-      });
-
-      return filtered;
+    canUploadAttachments() {
+      return this.hasPermission("upload_attachments");
     },
   },
 
   methods: {
-    ...mapActions("documents", [
-      "fetchDocuments",
-      "updateDocumentStatus",
-      "deleteDocument",
-      "downloadDocument",
-    ]),
-
-    isCurrentUserUploader(document) {
-      const currentUser = JSON.parse(localStorage.getItem("user"));
-      return document.uploadedBy?._id === currentUser._id;
-    },
-
-    getDisplayStatus(document) {
-      if (document.status === "incoming" || document.status === "outgoing") {
-        const isUploader = this.isCurrentUserUploader(document);
-        return isUploader ? "outgoing" : "incoming";
-      }
-      return document.status;
-    },
-
-    getUserRole() {
-      const userStr = localStorage.getItem("user");
-      if (userStr) {
-        const user = JSON.parse(userStr);
-        return user.role;
-      }
-      return null;
-    },
-
-    getStatusColor(status) {
-      const colorMapping = {
-        approved: "success",
-        rejected: "error",
-        incoming: "primary",
-        outgoing: "secondary",
-        received: "success",
-        returned: "warning",
-        cancelled: "error",
-      };
-
-      return colorMapping[status] || "default";
-    },
-
-    getStatusCount(status) {
-      if (!this.documents) return 0;
-
-      if (status === "incoming") {
-        return this.documents.filter((doc) => {
-          const isUploader = this.isCurrentUserUploader(doc);
-          return (
-            !isUploader &&
-            (doc.status === "incoming" || doc.status === "outgoing")
-          );
-        }).length;
-      }
-
-      return 0;
-    },
+    ...mapActions({
+      fetchDocuments: "documents/fetchDocuments",
+      createDocument: "documents/createDocument",
+      addTracking: "documents/addTracking",
+      updateTracking: "documents/updateTracking",
+      updateDocumentStatus: "documents/updateDocumentStatus",
+      fetchDepartments: "departments/fetchDepartments",
+      fetchStatuses: "statuses/fetchStatuses",
+      updateTracking: "documents/updateTracking",
+    }),
 
     formatDate(date) {
-      return format(new Date(date), "MMM dd, yyyy");
+      return new Date(date).toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
     },
 
-    openStatusDialog(document) {
-      this.statusDialog = {
-        show: true,
-        status: document.status.toLowerCase().replace(" ", "-"),
-        remarks: document.remarks || "",
-        document,
+    async createNewDocument() {
+      const user = JSON.parse(localStorage.getItem("user"));
+
+      if (!this.$refs.newDocumentForm.validate()) return;
+
+      const currentUser = {
+        _id: user._id,
+        department: user.department._id,
       };
+
+      const attachments = this.newDocument.attachments
+        ? this.newDocument.attachments.map((file, index) => ({
+          _id: `att_init_${Date.now()}_${index}`,
+          title: file.name,
+          fileUrl: URL.createObjectURL(file),
+          fileType: file.type,
+          fileSize: file.size,
+          uploadedBy: currentUser._id,
+          uploadedAt: new Date().toISOString(),
+        }))
+        : [];
+
+      const newDoc = {
+        documents: {
+          title: this.newDocument.title,
+          description: this.newDocument.description,
+          user: currentUser._id,
+          createdAt: new Date().toISOString(),
+          status: "Under Review",
+          priority: this.newDocument.priority,
+          dueDate: new Date(this.newDocument.dueDate).toISOString(),
+          department: currentUser.department,
+        },
+        tracking: [
+          {
+            fromDepartment: currentUser.department,
+            toDepartment: this.newDocument.toDepartment,
+            documents: {
+              attachments: attachments,
+            },
+            sentBy: currentUser._id,
+            receivedBy: null,
+            sentAt: new Date().toISOString(),
+            receivedAt: null,
+            status: "Under Review",
+            comments: this.newDocument.comments,
+          },
+        ],
+        newDocument: this.newDocument,
+      };
+
+      try {
+        await this.createDocument(newDoc);
+        this.showNewDocumentDialog = false;
+        this.$refs.newDocumentForm.reset();
+      } catch (error) {
+        console.error("Failed to create document:", error);
+      }
     },
 
-    async updateStatus() {
+    async submitTrackingUpdate() {
+      if (!this.$refs.updateForm.validate()) return;
+
+      const user = JSON.parse(localStorage.getItem("user"));
+
       try {
-        this.updating = true;
-        await this.updateDocumentStatus({
-          id: this.statusDialog.document._id,
-          data: {
-            status: this.statusDialog.status,
-            remarks: this.statusDialog.remarks,
+        const data = {
+          documentId: this.selectedDocument._id,
+          trackingData: { ...this.trackingUpdate, sentBy: user._id },
+        };
+        await this.addTracking(data);
+        this.showUpdateForm = false;
+      } catch (error) {
+        console.log(error);
+      }
+    },
+
+    markAsReceived(trackingIndex) {
+      this.selectedTrackingIndex = trackingIndex;
+      this.showReceiveDialog = true;
+    },
+
+    async confirmReceived() {
+      try {
+        const user = JSON.parse(localStorage.getItem("user"));
+
+        const tracking =
+          this.selectedDocument.tracking[this.selectedTrackingIndex];
+
+        const response = await this.updateTracking({
+          documentId: this.selectedDocument._id,
+          trackingId: tracking._id,
+          trackingData: {
+            receivedBy: user._id,
+            receivedAt: new Date().toISOString(),
           },
         });
-        this.statusDialog.show = false;
+
+        this.showReceiveDialog = false;
+        this.selectedTrackingIndex = null;
       } catch (error) {
-        console.error("Failed to update status:", error);
-      } finally {
-        this.updating = false;
+        console.log(error);
       }
     },
 
-    confirmDelete(document) {
-      this.deleteDialog = {
-        show: true,
-        document,
+    getFullName(user) {
+      if (!user) return "Admin";
+      if (user.firstName && user.lastName) {
+        return `${user.firstName} ${user.lastName}`;
+      }
+      if (user.firstName) {
+        return user.firstName;
+      }
+      if (user.lastName) {
+        return user.lastName;
+      }
+      return "Admin";
+    },
+
+    getStatusColor(statusName) {
+      const status = this.statuses.find((s) => s.name === statusName);
+      return status ? status.color : "grey";
+    },
+
+    getPriorityColor(priority) {
+      const colors = {
+        High: "red",
+        Medium: "orange",
+        Low: "green",
       };
+      return colors[priority] || "grey";
+    },
+    viewHistory(item) {
+      this.selectedDocument = item;
+      this.activeTab = 1;
+    },
+    viewDetails(item) {
+      this.selectedDocument = item;
+      this.activeTab = 2;
     },
 
-    async deleteDocument() {
-      try {
-        this.deleting = true;
-        await this.deleteDocument(this.deleteDialog.document._id);
-        this.deleteDialog.show = false;
-      } catch (error) {
-        console.error("Failed to delete document:", error);
-      } finally {
-        this.deleting = false;
+    addTrackingDialog(document) {
+      if (document.status === "Completed") {
+        return;
       }
-    },
-
-    async download(item) {
-      saveAs(item.fileUrl, `${item.name}.${item.fileFormat}`);
+      this.selectedDocument = document;
+      this.showUpdateForm = true;
     },
   },
 
   async created() {
-    await this.fetchDocuments({ department: this.getUserRole() });
-  },
+    try {
+      await Promise.all([
+        this.fetchDocuments(),
+        this.fetchDepartments(),
+        this.fetchStatuses(),
+      ]);
 
-  watch: {
-    activeTab() {
-      this.search = "";
-      this.filters.department = null;
-    },
+      if (this.documents.length) {
+        this.selectedDocument = this.documents[0];
+      }
+    } catch (error) {
+      console.error("Error initializing data:", error);
+    }
   },
 };
 </script>
+
+<style scoped>
+.v-card {
+  margin-bottom: 16px;
+}
+</style>

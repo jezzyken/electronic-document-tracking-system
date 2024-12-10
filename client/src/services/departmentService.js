@@ -1,8 +1,8 @@
-import api from './api';
+import api from "./api";
 
 export default {
   getDepartments() {
-    return api.get('/department');
+    return api.get("/department");
   },
 
   getDepartment(id) {
@@ -10,7 +10,7 @@ export default {
   },
 
   createDepartment(departmentData) {
-    return api.post('/department', departmentData);
+    return api.post("/department", departmentData);
   },
 
   updateDepartment(id, departmentData) {
@@ -19,5 +19,5 @@ export default {
 
   deleteDepartment(id) {
     return api.delete(`/department/${id}`);
-  }
+  },
 };

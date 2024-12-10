@@ -13,23 +13,30 @@ const userSchema = new Schema(
     password: {
       type: String,
     },
-    username: {
+    firstName: {
       type: String,
-      sparse: true,
-      unique: true,
-    },
-    fistName: {
-      type: String,
+      required: true,
     },
     lastName: {
       type: String,
+      required: true,
     },
-    middleName: {
+    position: {
       type: String,
+    },
+    employeeId: {
+      type: String,
+      unique: true,
+      sparse: true,
+    },
+    department: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Department",
     },
     role: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Role",
+      required: true,
     },
     isActive: {
       type: Boolean,
@@ -38,8 +45,14 @@ const userSchema = new Schema(
   },
   {
     timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
   }
 );
+
+userSchema.virtual("fullName").get(function () {
+  return `${this.firstName} ${this.lastName}`;
+});
 
 userSchema.methods.comparePassword = async function (candidatePassword) {
   return await bcrypt.compare(candidatePassword, this.password);
@@ -47,9 +60,38 @@ userSchema.methods.comparePassword = async function (candidatePassword) {
 
 userSchema.pre("save", async function (next) {
   if (!this.isModified("password")) return next();
-
   this.password = await bcrypt.hash(this.password, 12);
   next();
+});
+
+userSchema.pre("validate", async function (next) {
+  try {
+    if (!this.role) {
+      return next();
+    }
+
+    const Role = mongoose.model("Role");
+    const roleData = await Role.findById(this.role);
+
+    if (!roleData) {
+      return next(new Error("Invalid role"));
+    }
+
+    if (roleData.name.toLowerCase() !== "admin") {
+      if (!this.department) {
+        this.invalidate(
+          "department",
+          "Department is required for non-admin users"
+        );
+      }
+      if (!this.position) {
+        this.invalidate("position", "Position is required for non-admin users");
+      }
+    }
+    next();
+  } catch (error) {
+    next(error);
+  }
 });
 
 module.exports = mongoose.model("User", userSchema);

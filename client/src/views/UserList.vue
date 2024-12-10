@@ -4,80 +4,50 @@
       <v-card-title class="d-flex align-center py-3 px-4">
         <h2 class="text-h5 font-weight-bold mb-0">User Management</h2>
         <v-spacer></v-spacer>
-        <v-btn
-          color="primary"
-          @click="openCreateModal"
-          prepend-icon="mdi-plus"
-          class="px-4"
-        >
+        <v-btn color="primary" @click="openCreateModal" prepend-icon="mdi-plus" class="px-4">
           Create New User
         </v-btn>
       </v-card-title>
 
       <v-divider></v-divider>
 
-      <v-data-table
-        :headers="headers"
-        :items="users"
-        :loading="loading"
-        :search="search"
-        :items-per-page="10"
+      <v-data-table :headers="dynamicHeaders" :items="users" :loading="loading" :search="search" :items-per-page="10"
         :footer-props="{
           'items-per-page-options': [5, 10, 15, 20],
           showFirstLastPage: true,
-        }"
-        class="elevation-0"
-      >
+        }" class="elevation-0">
         <template v-slot:top>
           <v-toolbar flat class="px-4 d-flex justify-end">
-            <v-text-field
-              v-model="search"
-              prepend-inner-icon="mdi-magnify"
-              label="Search users..."
-              hide-details
-              dense
-              outlined
-              rounded
-              class="mt-6"
-              clearable
-              @click:clear="search = ''"
-              :class="{ 'focused-field': isFocused }"
-              @focus="isFocused = true"
-              @blur="isFocused = false"
-              style="max-width: 300px"
-            ></v-text-field>
+            <v-text-field v-model="search" prepend-inner-icon="mdi-magnify" label="Search users..." hide-details dense
+              outlined rounded class="mt-6" clearable @click:clear="search = ''" :class="{ 'focused-field': isFocused }"
+              @focus="isFocused = true" @blur="isFocused = false"></v-text-field>
           </v-toolbar>
         </template>
 
-        <template v-slot:[`item.isActive`]="{ item }">
-          <v-chip
-            :color="item.isActive ? 'success' : 'grey'"
-            :text-color="item.isActive ? 'white' : ''"
-            small
-            label
-          >
-            {{ item.isActive ? "Active" : "Inactive" }}
-          </v-chip>
+        <template v-slot:[`item.fullName`]="{ item }">
+          <div class="font-weight-medium">{{ item.firstName }} {{ item.lastName }}</div>
+        </template>
+
+        <template v-slot:[`item.department`]="{ item }">
+          <div>{{ item.department?.name }}</div>
         </template>
 
         <template v-slot:[`item.role`]="{ item }">
-          <v-chip small outlined color="primary">
-            {{ item.role ? item.role.name : "No Role" }}
+          <v-chip small label color="primary" text-color="white">
+            {{ item.role?.name }}
+          </v-chip>
+        </template>
+
+        <template v-slot:[`item.isActive`]="{ item }">
+          <v-chip :color="item.isActive ? 'success' : 'grey'" :text-color="item.isActive ? 'white' : ''" small label>
+            {{ item.isActive ? "Active" : "Inactive" }}
           </v-chip>
         </template>
 
         <template v-slot:[`item.actions`]="{ item }">
           <v-tooltip bottom>
             <template v-slot:activator="{ on, attrs }">
-              <v-btn
-                icon
-                small
-                color="primary"
-                @click="openEditModal(item)"
-                class="mr-2"
-                v-bind="attrs"
-                v-on="on"
-              >
+              <v-btn icon small color="primary" @click="openEditModal(item)" class="mr-2" v-bind="attrs" v-on="on">
                 <v-icon small>mdi-pencil</v-icon>
               </v-btn>
             </template>
@@ -86,30 +56,25 @@
 
           <v-tooltip bottom>
             <template v-slot:activator="{ on, attrs }">
-              <v-btn
-                icon
-                small
-                color="error"
-                @click="confirmDelete(item._id)"
-                v-bind="attrs"
-                v-on="on"
-              >
+              <v-btn icon small color="error" @click="confirmDelete(item._id)" v-bind="attrs" v-on="on">
                 <v-icon small>mdi-delete</v-icon>
               </v-btn>
             </template>
             <span>Delete User</span>
           </v-tooltip>
         </template>
+
+        <template v-slot:no-data>
+          <v-alert type="info" class="ma-4" text>No users found</v-alert>
+        </template>
       </v-data-table>
     </v-card>
 
-    <!-- User Form Dialog -->
+    <!-- Create/Edit Modal -->
     <v-dialog v-model="showModal" max-width="600px" persistent>
       <v-card>
         <v-card-title class="py-3 px-4">
-          <span class="text-h5">{{
-            isEditing ? "Edit User" : "Create User"
-          }}</span>
+          <span class="text-h5">{{ isEditing ? "Edit User" : "Create User" }}</span>
           <v-spacer></v-spacer>
           <v-btn icon @click="closeModal">
             <v-icon>mdi-close</v-icon>
@@ -120,59 +85,47 @@
 
         <v-card-text class="pt-4">
           <v-form ref="form" v-model="valid" @submit.prevent="handleSubmit">
-            <v-text-field
-              v-model="userForm.username"
-              label="Username"
-              required
-              outlined
-              dense
-              :rules="[(v) => !!v || 'Username is required']"
-            ></v-text-field>
+            <!-- Role Selection First -->
+            <v-select v-model="userForm.role" :items="roles" item-text="name" item-value="_id" label="Role" required
+              outlined dense :rules="[(v) => !!v || 'Please select a role first']"
+              @change="handleRoleChange"></v-select>
 
-            <v-text-field
-              v-model="userForm.email"
-              label="Email"
-              type="email"
-              required
-              outlined
-              dense
-              :rules="[
-                (v) => !!v || 'Email is required',
-                (v) => /.+@.+\..+/.test(v) || 'Email must be valid',
-              ]"
-            ></v-text-field>
+            <!-- Other fields only shown after role is selected -->
+            <template v-if="userForm.role">
+              <v-row>
+                <v-col cols="6">
+                  <v-text-field v-model="userForm.firstName" label="First Name" required outlined dense
+                    :rules="[(v) => !!v || 'First name is required']"></v-text-field>
+                </v-col>
+                <v-col cols="6">
+                  <v-text-field v-model="userForm.lastName" label="Last Name" required outlined dense
+                    :rules="[(v) => !!v || 'Last name is required']"></v-text-field>
+                </v-col>
+              </v-row>
 
-            <v-text-field
-              v-model="userForm.password"
-              label="Password"
-              type="password"
-              outlined
-              dense
-              :rules="[
-                (v) =>
-                  !isEditing || !!v || 'Password is required for new users',
-              ]"
-            ></v-text-field>
+              <v-text-field v-model="userForm.email" label="Email" type="email" required outlined dense
+                :rules="emailRules"></v-text-field>
 
-            <v-select
-              v-model="userForm.role"
-              :items="roles"
-              item-text="name"
-              item-value="_id"
-              label="Role"
-              required
-              outlined
-              dense
-              :rules="[(v) => !!v || 'Role is required']"
-            ></v-select>
+              <v-text-field v-if="!isEditing" v-model="userForm.password" label="Password" type="password" required
+                outlined dense :rules="passwordRules"></v-text-field>
 
-            <v-switch
-              v-model="userForm.isActive"
-              label="Active Status"
-              color="success"
-              class="mt-2"
-              hide-details
-            ></v-switch>
+              <!-- Employee ID only for non-admin roles -->
+              <v-text-field v-if="!isAdminRole" v-model="userForm.employeeId" label="Employee ID" outlined
+                dense></v-text-field>
+
+              <!-- Department and Position only for non-admin roles -->
+              <template v-if="!isAdminRole">
+                <v-select v-model="userForm.department" :items="departments" item-text="name" item-value="_id"
+                  label="Department" required outlined dense
+                  :rules="[(v) => !!v || 'Department is required']"></v-select>
+
+                <v-text-field v-model="userForm.position" label="Position" required outlined dense
+                  :rules="[(v) => !!v || 'Position is required']"></v-text-field>
+              </template>
+
+              <v-switch v-model="userForm.isActive" label="Active Status" color="success" class="mt-2"
+                hide-details></v-switch>
+            </template>
           </v-form>
         </v-card-text>
 
@@ -180,20 +133,10 @@
 
         <v-card-actions class="py-3 px-4">
           <v-spacer></v-spacer>
-          <v-btn
-            text
-            color="grey darken-1"
-            @click="closeModal"
-            :disabled="loading"
-          >
+          <v-btn text color="grey darken-1" @click="closeModal" :disabled="loading">
             Cancel
           </v-btn>
-          <v-btn
-            color="primary"
-            @click="handleSubmit"
-            :loading="loading"
-            :disabled="!valid"
-          >
+          <v-btn color="primary" @click="handleSubmit" :loading="loading" :disabled="!valid">
             {{ isEditing ? "Update" : "Create" }}
           </v-btn>
         </v-card-actions>
@@ -208,18 +151,12 @@
         </v-card-title>
 
         <v-card-text class="pt-3">
-          Are you sure you want to delete this user? This action cannot be
-          undone.
+          Are you sure you want to delete this user? This action cannot be undone.
         </v-card-text>
 
         <v-card-actions class="py-3 px-4">
           <v-spacer></v-spacer>
-          <v-btn
-            text
-            color="grey darken-1"
-            @click="showDeleteDialog = false"
-            :disabled="loading"
-          >
+          <v-btn text color="grey darken-1" @click="showDeleteDialog = false" :disabled="loading">
             Cancel
           </v-btn>
           <v-btn color="error" @click="handleDelete" :loading="loading">
@@ -230,13 +167,7 @@
     </v-dialog>
 
     <!-- Snackbar -->
-    <v-snackbar
-      v-model="snackbar.show"
-      :color="snackbar.color"
-      :timeout="3000"
-      top
-      right
-    >
+    <v-snackbar v-model="snackbar.show" :color="snackbar.color" :timeout="3000" top right>
       {{ snackbar.text }}
       <template v-slot:action="{ attrs }">
         <v-btn text v-bind="attrs" @click="snackbar.show = false">
@@ -256,26 +187,43 @@ export default {
   data() {
     return {
       search: "",
+      isFocused: false,
       valid: true,
       showModal: false,
       showDeleteDialog: false,
       isEditing: false,
-      isFocused: false,
+      isAdminRole: false,
       currentUserId: null,
       userForm: {
-        username: "",
+        role: null,
+        firstName: "",
+        lastName: "",
         email: "",
         password: "",
-        role: null,
+        employeeId: "",
+        department: null,
+        position: "",
         isActive: true,
       },
-      headers: [
-        { text: "Username", value: "username" },
+      baseHeaders: [
+        { text: "Name", value: "fullName" },
         { text: "Email", value: "email" },
         { text: "Role", value: "role.name" },
         { text: "Status", value: "isActive" },
-        { text: "Created At", value: "createdAt" },
         { text: "Actions", value: "actions", sortable: false },
+      ],
+      nonAdminHeaders: [
+        { text: "Employee ID", value: "employeeId" },
+        { text: "Department", value: "department.name" },
+        { text: "Position", value: "position" },
+      ],
+      emailRules: [
+        (v) => !!v || "Email is required",
+        (v) => /.+@.+\..+/.test(v) || "Email must be valid",
+      ],
+      passwordRules: [
+        (v) => !!v || "Password is required",
+        (v) => v.length >= 8 || "Password must be at least 8 characters",
       ],
       snackbar: {
         show: false,
@@ -286,19 +234,40 @@ export default {
   },
 
   computed: {
-    ...mapState("users", ["loading", "error"]),
-    ...mapGetters("users", ["users"]),
-    ...mapState("roles", ["roles"]),
+    ...mapState({
+      loading: (state) => state.users.loading,
+      error: (state) => state.users.error,
+      users: (state) => state.users.users,
+      roles: (state) => state.roles.roles,
+      departments: (state) => state.departments.departments,
+    }),
+
+    dynamicHeaders() {
+      // Filter users to check if there are any admin users
+      const hasAdminUsers = this.users.some(
+        user => user.role?.name.toLowerCase() === 'admin'
+      );
+
+      // If there are admin users, show only base headers for them
+      if (hasAdminUsers) {
+        return [...this.baseHeaders];
+      }
+
+      // For non-admin users, include all headers
+      return [...this.baseHeaders.slice(0, 2), ...this.nonAdminHeaders,
+      ...this.baseHeaders.slice(2)];
+    },
   },
 
   methods: {
-    ...mapActions("users", [
-      "fetchUsers",
-      "createUser",
-      "updateUser",
-      "deleteUser",
-    ]),
-    ...mapActions("roles", ["fetchRoles"]),
+    ...mapActions({
+      fetchUsers: "users/fetchUsers",
+      createUser: "users/createUser",
+      updateUser: "users/updateUser",
+      deleteUser: "users/deleteUser",
+      fetchRoles: "roles/fetchRoles",
+      fetchDepartments: "departments/fetchDepartments",
+    }),
 
     showSnackbar(text, color = "success") {
       this.snackbar = {
@@ -308,22 +277,31 @@ export default {
       };
     },
 
-    resetForm() {
-      this.userForm = {
-        username: "",
-        email: "",
-        password: "",
-        role: null,
-        isActive: true,
-      };
-      if (this.$refs.form) {
-        this.$refs.form.reset();
+    handleRoleChange(roleId) {
+      const selectedRole = this.roles.find((role) => role._id === roleId);
+      this.isAdminRole = selectedRole?.name.toLowerCase() === "admin";
+
+      if (this.isAdminRole) {
+        this.userForm.employeeId = "";
+        this.userForm.department = null;
+        this.userForm.position = "";
       }
     },
 
     openCreateModal() {
       this.isEditing = false;
-      this.resetForm();
+      this.userForm = {
+        role: null,
+        firstName: "",
+        lastName: "",
+        email: "",
+        password: "",
+        employeeId: "",
+        department: null,
+        position: "",
+        isActive: true,
+      };
+      this.isAdminRole = false;
       this.showModal = true;
     },
 
@@ -331,48 +309,52 @@ export default {
       this.isEditing = true;
       this.currentUserId = user._id;
       this.userForm = {
-        username: user.username,
-        email: user.email,
-        password: "", // Clear password field for editing
         role: user.role?._id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        employeeId: user.employeeId,
+        department: user.department?._id,
+        position: user.position,
         isActive: user.isActive,
       };
+      this.handleRoleChange(user.role?._id);
       this.showModal = true;
     },
 
     closeModal() {
       this.showModal = false;
-      this.resetForm();
-      this.currentUserId = null;
+      this.$refs.form.reset();
+      this.isAdminRole = false;
     },
 
     async handleSubmit() {
       if (!this.$refs.form.validate()) return;
 
       try {
-        if (this.isEditing) {
-          // Only include password if it was changed
-          const userData = { ...this.userForm };
-          if (!userData.password) {
-            delete userData.password;
-          }
+        const userData = { ...this.userForm };
 
+        // Remove non-admin fields if admin role
+        if (this.isAdminRole) {
+          delete userData.employeeId;
+          delete userData.department;
+          delete userData.position;
+        }
+
+        if (this.isEditing) {
           await this.updateUser({
             id: this.currentUserId,
             userData,
           });
           this.showSnackbar("User updated successfully");
         } else {
-          await this.createUser(this.userForm);
+          await this.createUser(userData);
           this.showSnackbar("User created successfully");
         }
         this.closeModal();
         await this.fetchUsers();
       } catch (error) {
-        this.showSnackbar(
-          error.response?.data?.message || "An error occurred",
-          "error"
-        );
+        this.showSnackbar(error.message || "An error occurred", "error");
       }
     },
 
@@ -386,39 +368,35 @@ export default {
         await this.deleteUser(this.currentUserId);
         this.showSnackbar("User deleted successfully");
         this.showDeleteDialog = false;
-        this.currentUserId = null;
+        await this.fetchUsers();
       } catch (error) {
-        this.showSnackbar(
-          error.response?.data?.message || "An error occurred",
-          "error"
-        );
+        this.showSnackbar(error.message || "An error occurred", "error");
       }
-    },
-
-    formatDate(date) {
-      if (!date) return "";
-      return new Date(date).toLocaleDateString();
     },
   },
 
   async created() {
     try {
-      await Promise.all([this.fetchUsers(), this.fetchRoles()]);
+      await Promise.all([
+        this.fetchUsers(),
+        this.fetchRoles(),
+        this.fetchDepartments(),
+      ]);
     } catch (error) {
-      this.showSnackbar(
-        error.response?.data?.message || "Failed to load data",
-        "error"
-      );
+      this.showSnackbar(error.message || "Failed to fetch data", "error");
     }
   },
 
   watch: {
-    error(newError) {
-      if (newError) {
-        this.showSnackbar(newError, "error");
+    'userForm.role'(newRole) {
+      if (!newRole) {
+        // Reset form fields when role is cleared
+        this.userForm.employeeId = '';
+        this.userForm.department = null;
+        this.userForm.position = '';
       }
-    },
-  },
+    }
+  }
 };
 </script>
 
@@ -431,53 +409,15 @@ export default {
   background: #f5f5f5;
 }
 
-.v-data-table :deep(th) {
-  font-weight: 600 !important;
-  font-size: 0.875rem !important;
-  color: rgba(0, 0, 0, 0.87) !important;
+.v-data-table>>>.v-data-table__wrapper {
+  overflow-x: auto;
 }
 
-.v-chip.small {
-  height: 24px;
+.v-card {
+  border-radius: 8px;
 }
 
-/* Custom scrollbar for the modal */
-:deep(.v-dialog) {
-  overflow-y: auto;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
-}
-
-:deep(.v-dialog::-webkit-scrollbar) {
-  width: 8px;
-}
-
-:deep(.v-dialog::-webkit-scrollbar-track) {
-  background: transparent;
-}
-
-:deep(.v-dialog::-webkit-scrollbar-thumb) {
-  background-color: rgba(0, 0, 0, 0.2);
-  border-radius: 4px;
-}
-
-.v-card-title {
-  word-break: break-word;
-}
-
-.error--text {
-  color: #ff5252 !important;
-}
-
-/* Responsive adjustments */
-@media (max-width: 600px) {
-  .v-data-table :deep(th),
-  .v-data-table :deep(td) {
-    padding: 0 8px !important;
-  }
-
-  .v-btn {
-    min-width: unset;
-  }
+.v-dialog>.v-card {
+  border-radius: 8px;
 }
 </style>

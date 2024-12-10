@@ -7,7 +7,9 @@ const generateToken = (user) => {
     {
       id: user._id,
       email: user.email,
-      roles: user.roles,
+      role: user.role,
+      name: user.fullName,
+      isActive: user.isActive,
     },
     process.env.JWT_SECRET,
     {
@@ -20,6 +22,7 @@ const login = async (email, password) => {
   console.log(email, password);
   const userData = await User.findOne({ email })
     .select("+password")
+    .populate("department", "name")
     .populate("role");
 
   if (!userData || !(await userData.comparePassword(password))) {
@@ -36,8 +39,12 @@ const login = async (email, password) => {
 
   const user = {
     _id: userData._id,
-    role: userData.role.name,
-    username: userData.username,
+    email: userData.email,
+    role: userData.role,
+    name: userData.fullName,
+    department: userData.department,
+    fullName: userData?.fullName || "Admin",
+    isActive: userData.isActive,
   };
 
   const token = generateToken(userData);

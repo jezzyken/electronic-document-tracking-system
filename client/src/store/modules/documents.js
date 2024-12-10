@@ -8,7 +8,6 @@ export default {
     currentDocument: null,
     loading: false,
     error: null,
-      userRole: JSON.parse(localStorage.getItem('user'))?.role || null
   },
 
   getters: {
@@ -28,16 +27,34 @@ export default {
     ADD_DOCUMENT(state, document) {
       state.documents.push(document);
     },
-    UPDATE_DOCUMENT(state, updatedDocument) {
-      const index = state.documents.findIndex(
-        (d) => d._id === updatedDocument._id
-      );
-      if (index !== -1) {
-        state.documents.splice(index, 1, updatedDocument);
+    UPDATE_DOCUMENT_STATUS(state, { documentId, status }) {
+      const document = state.documents.find((d) => d._id === documentId);
+      if (document) {
+        document.status = status;
       }
     },
-    REMOVE_DOCUMENT(state, documentId) {
-      state.documents = state.documents.filter((d) => d._id !== documentId);
+
+    UPDATE_TRACKING(state, { documentId, trackingId, data }) {
+      const document = state.documents.find((d) => d._id === documentId);
+      if (document && document.tracking) {
+        const trackingIndex = document.tracking.findIndex(
+          (t) => t._id === trackingId
+        );
+        if (trackingIndex !== -1) {
+          document.tracking[trackingIndex] = {
+            ...document.tracking[trackingIndex],
+            ...data,
+          };
+        }
+      }
+    },
+
+    ADD_TRACKING(state, { documentId, tracking }) {
+      const document = state.documents.find((d) => d._id === documentId);
+      if (document) {
+        if (!document.tracking) document.tracking = [];
+        document.tracking.push(tracking);
+      }
     },
     SET_LOADING(state, loading) {
       state.loading = loading;
@@ -51,16 +68,17 @@ export default {
   },
 
   actions: {
-    async fetchDocuments({ commit }, query) {
+    async fetchDocuments({ commit }) {
       try {
         commit("SET_LOADING", true);
         commit("CLEAR_ERROR");
-        const response = await documentService.getDocuments(query);
+        const response = await documentService.getDocuments();
+        console.log({ response });
         commit("SET_DOCUMENTS", response.data);
       } catch (error) {
         commit(
           "SET_ERROR",
-          error.response?.data?.message || "Failed to fetch documents"
+          error.response?.data?.error || "Failed to fetch documents"
         );
         throw error;
       } finally {
@@ -68,33 +86,61 @@ export default {
       }
     },
 
-    async uploadDocument({ commit }, { formData, config }) {
+    async fetchDocument({ commit }, id) {
       try {
         commit("SET_LOADING", true);
         commit("CLEAR_ERROR");
-        const response = await documentService.uploadDocument(formData, config);
+        const response = await documentService.getDocument(id);
+        commit("SET_CURRENT_DOCUMENT", response.data);
+      } catch (error) {
+        commit(
+          "SET_ERROR",
+          error.response?.data?.error || "Failed to fetch document"
+        );
+        throw error;
+      } finally {
+        commit("SET_LOADING", false);
+      }
+    },
+
+    async createDocument({ commit }, newDocument) {
+      try {
+        commit("SET_LOADING", true);
+        commit("CLEAR_ERROR");
+
+        const response = await documentService.createDocument(newDocument);
         commit("ADD_DOCUMENT", response.data);
         return response.data;
       } catch (error) {
-        commit("SET_ERROR", error.response?.data?.message || "Upload failed");
+        commit(
+          "SET_ERROR",
+          error.response?.data?.error || "Failed to create document"
+        );
         throw error;
       } finally {
         commit("SET_LOADING", false);
       }
     },
 
-    async updateDocumentStatus({ commit }, data) {
-      console.log(data);
+    async addTracking({ commit }, data) {
       try {
         commit("SET_LOADING", true);
         commit("CLEAR_ERROR");
-        const response = await documentService.updateStatus(data);
-        commit("UPDATE_DOCUMENT", response.data);
+
+        const response = await documentService.addTracking(data);
+        commit("ADD_TRACKING", {
+          documentId: data.documentId,
+          tracking: response.data,
+        });
+        commit("UPDATE_DOCUMENT_STATUS", {
+          documentId: data.documentId,
+          status: response.data.status,
+        });
         return response.data;
       } catch (error) {
         commit(
           "SET_ERROR",
-          error.response?.data?.message || "Failed to update status"
+          error.response?.data?.error || "Failed to add tracking"
         );
         throw error;
       } finally {
@@ -102,44 +148,29 @@ export default {
       }
     },
 
-    async deleteDocument({ commit }, id) {
+    async updateTracking({ commit }, { documentId, trackingId, trackingData }) {
       try {
         commit("SET_LOADING", true);
         commit("CLEAR_ERROR");
-        await documentService.deleteDocument(id);
-        commit("REMOVE_DOCUMENT", id);
+
+        const response = await documentService.updateTracking(
+          documentId,
+          trackingId,
+          trackingData
+        );
+
+        commit("UPDATE_TRACKING", {
+          documentId,
+          trackingId,
+          data: response.data,
+        });
+
+        return response.data;
       } catch (error) {
         commit(
           "SET_ERROR",
-          error.response?.data?.message || "Failed to delete document"
+          error.response?.data?.error || "Failed to update tracking"
         );
-        throw error;
-      } finally {
-        commit("SET_LOADING", false);
-      }
-    },
-
-    async downloadDocument({ commit }, document) {
-      try {
-        commit("SET_LOADING", true);
-        commit("CLEAR_ERROR");
-        
-        const data = await documentService.downloadDocument(document._id);
-
-        return data
-        // const url = window.URL.createObjectURL(blob);
-        
-        // const link = document.createElement('a');
-        // link.href = url;
-        // link.download = `${document.name}.${document.fileFormat}`;
-        
-        // document.body.appendChild(link);
-        // link.click();
-        // document.body.removeChild(link);
-        
-        // window.URL.revokeObjectURL(url);
-      } catch (error) {
-        commit("SET_ERROR", error.response?.data?.message || "Download failed");
         throw error;
       } finally {
         commit("SET_LOADING", false);
