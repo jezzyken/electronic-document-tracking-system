@@ -79,6 +79,7 @@ router.put("/:id", auth, async (req, res) => {
       data: user,
     });
   } catch (error) {
+    console.log(error)
     res.status(400).json({
       success: false,
       error: error.message,

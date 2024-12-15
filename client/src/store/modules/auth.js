@@ -49,7 +49,7 @@ export default {
         localStorage.setItem("user", JSON.stringify(user));
         commit("SET_TOKEN", token);
         commit("SET_USER", user);
-        router.push("/dashboard");
+        router.push("/admin/dashboard");
       } catch (error) {
         commit("SET_ERROR", error.response?.data?.message || "Login failed");
         throw error;

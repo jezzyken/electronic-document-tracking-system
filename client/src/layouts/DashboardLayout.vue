@@ -11,6 +11,52 @@
       dark
     >
       <v-list dense class="drawer-list">
+        <div class="user-profile pa-4">
+          <div class="text-center">
+            <v-avatar
+              size="40"
+              class="mb-3"
+              color="grey lighten-4"
+              elevation="2"
+            >
+              <span class="primary--text font-weight-medium text-caption">{{
+                userInitials
+              }}</span>
+            </v-avatar>
+          </div>
+
+          <!-- Only show details when not in mini mode -->
+          <div v-if="!mini" class="user-details text-center">
+            <h3 class="text-subtitle-1 font-weight-medium mb-1">
+              {{ currentUser.name }}
+            </h3>
+            <p class="text-caption mb-2 white--text">
+              {{ currentUser.email }}
+            </p>
+            <div class="role-info">
+              <v-chip
+                small
+                class="mr-1 mb-1"
+                color="white"
+                text-color="white"
+                outlined
+              >
+                {{ currentUser.department }}
+              </v-chip>
+              <v-chip
+                small
+                class="mb-1"
+                color="white"
+                text-color="white"
+                outlined
+              >
+                {{ currentUser.role.name }}
+              </v-chip>
+            </div>
+          </div>
+        </div>
+        <v-divider class="mb-2"></v-divider>
+
         <v-list-item>
           <v-list-item-icon>
             <v-icon class="white--text">mdi-home-circle</v-icon>
@@ -20,60 +66,62 @@
           </v-list-item-content>
         </v-list-item>
 
-        <template v-for="item in menuItems">
-          <!-- Regular menu item -->
-          <v-list-item
-            v-if="!item.children"
-            :key="item.title"
-            :to="item.to"
-            link
-            class="drawer-item white--text"
-            :class="{ 'active-item': $route.path === item.to }"
+        <template v-for="item in filteredMenuItems">
+          <template
+            v-if="!item.show || (item.show === 'isAdmin' ? isAdmin : true)"
           >
-            <v-list-item-icon>
-              <v-icon class="white--text">{{ item.icon }}</v-icon>
-            </v-list-item-icon>
-            <v-list-item-content v-if="!mini">
-              <v-list-item-title class="white--text">{{
-                item.title
-              }}</v-list-item-title>
-            </v-list-item-content>
-          </v-list-item>
-
-          <!-- Group with sub-items -->
-          <v-list-group
-            v-else
-            :key="item.title"
-            :prepend-icon="item.icon"
-            class="drawer-item"
-            :value="isGroupActive(item)"
-          >
-            <template v-slot:activator>
-              <v-list-item-content>
+            <v-list-item
+              v-if="!item.children"
+              :key="item.title"
+              :to="item.to"
+              link
+              class="drawer-item white--text"
+              :class="{ 'active-item': $route.path === item.to }"
+            >
+              <v-list-item-icon>
+                <v-icon class="white--text">{{ item.icon }}</v-icon>
+              </v-list-item-icon>
+              <v-list-item-content v-if="!mini">
                 <v-list-item-title class="white--text">{{
                   item.title
                 }}</v-list-item-title>
               </v-list-item-content>
-            </template>
-
-            <v-list-item
-              v-for="child in item.children"
-              :key="child.title"
-              :to="child.to"
-              link
-              class="drawer-sub-item white--text"
-              :class="{ 'active-item': $route.path === child.to }"
-            >
-              <v-list-item-icon>
-                <v-icon class="white--text">{{ child.icon }}</v-icon>
-              </v-list-item-icon>
-              <v-list-item-content v-if="!mini">
-                <v-list-item-title class="white--text">{{
-                  child.title
-                }}</v-list-item-title>
-              </v-list-item-content>
             </v-list-item>
-          </v-list-group>
+
+            <v-list-group
+              v-else
+              :key="item.title"
+              :prepend-icon="item.icon"
+              class="drawer-item"
+              :value="isGroupActive(item)"
+            >
+              <template v-slot:activator>
+                <v-list-item-content>
+                  <v-list-item-title class="white--text">{{
+                    item.title
+                  }}</v-list-item-title>
+                </v-list-item-content>
+              </template>
+
+              <v-list-item
+                v-for="child in item.children"
+                :key="child.title"
+                :to="child.to"
+                link
+                class="drawer-sub-item white--text"
+                :class="{ 'active-item': $route.path === child.to }"
+              >
+                <v-list-item-icon>
+                  <v-icon class="white--text">{{ child.icon }}</v-icon>
+                </v-list-item-icon>
+                <v-list-item-content v-if="!mini">
+                  <v-list-item-title class="white--text">{{
+                    child.title
+                  }}</v-list-item-title>
+                </v-list-item-content>
+              </v-list-item>
+            </v-list-group>
+          </template>
         </template>
       </v-list>
     </v-navigation-drawer>
@@ -132,10 +180,11 @@ export default {
         to: "/admin/dashboard",
       },
       // { title: "Upload", icon: "mdi-upload", to: "/admin/uploads" },
-      { title: "Landing Page", icon: "mdi-home", to: "/" },
+      { title: "Request Page", icon: "mdi-clipboard-text-outline", to: "/" },
       {
         title: "Documents",
         icon: "mdi-file-document-multiple",
+        defaultOpen: true,
         children: [
           {
             title: "Documents",
@@ -157,10 +206,11 @@ export default {
       {
         title: "Admin",
         icon: "mdi-account-group",
+        show: "isAdmin",
         children: [
           {
             title: "Users",
-            icon: "mdi-account",
+            icon: "mdi-account-multiple",
             to: "/admin/users",
           },
           {
@@ -170,25 +220,25 @@ export default {
           },
           {
             title: "Departments",
-            icon: "mdi-receipt",
+            icon: "mdi-domain",
             to: "/admin/departments",
           },
           {
             title: "Status",
-            icon: "mdi-receipt",
+            icon: "mdi-checkbox-marked-circle-outline",
             to: "/admin/status",
           },
         ],
       },
-      { title: "Settings", icon: "mdi-cog", to: "/admin/settings" },
+      // { title: "Settings", icon: "mdi-cog", to: "/admin/settings" },
       { title: "Reports", icon: "mdi-chart-box", to: "/admin/reports" },
     ],
     accountMenu: [
-      {
-        title: "Profile",
-        icon: "mdi-account",
-        action: "goToProfile",
-      },
+      // {
+      //   title: "Profile",
+      //   icon: "mdi-account",
+      //   action: "goToProfile",
+      // },
       {
         title: "Logout",
         icon: "mdi-logout",
@@ -203,6 +253,64 @@ export default {
         this.$route.name.charAt(0).toUpperCase() + this.$route.name.slice(1)
       );
     },
+    isAdmin() {
+      const userData = JSON.parse(localStorage.getItem("user"));
+      return userData?.role?.name === "Admin";
+    },
+    filteredMenuItems() {
+      return this.menuItems.filter((item) => {
+        if (item.show === "isAdmin" && !this.isAdmin) {
+          return false;
+        }
+
+        if (item.title === "Dashboard") {
+          const userData = JSON.parse(localStorage.getItem("user"));
+          if (userData?.role?.name === "Staff") {
+            return false;
+          }
+        }
+
+        return true;
+      });
+    },
+    currentUser() {
+      try {
+        const userData = JSON.parse(localStorage.getItem("user")) || {};
+
+        if (!userData) {
+          return null;
+        }
+
+        return {
+          name:
+            (userData?.name !== "undefined undefined" && userData?.name) ||
+            (userData?.fullName !== "undefined undefined" &&
+              userData?.fullName) ||
+            userData?.email ||
+            "User",
+          email: userData?.email || "",
+          role: userData?.role || { name: "Guest" },
+          department: userData?.department?.name || "Guest",
+        };
+      } catch (error) {
+        console.error("Error parsing user data:", error);
+        return null;
+      }
+    },
+    userInitials() {
+      const name = this.currentUser?.name || "Admin";
+
+      if (name.includes("@")) {
+        return name[0].toUpperCase();
+      }
+
+      const words = name.split(" ");
+      return words
+        .map((word) => word.charAt(0))
+        .join("")
+        .toUpperCase()
+        .slice(0, 2);
+    },
   },
 
   methods: {
@@ -210,7 +318,10 @@ export default {
 
     isGroupActive(item) {
       if (!item.children) return false;
-      return item.children.some((child) => this.$route.path === child.to);
+      return (
+        item.defaultOpen ||
+        item.children.some((child) => this.$route.path === child.to)
+      );
     },
 
     toggleDrawer() {
@@ -294,5 +405,19 @@ export default {
 .v-icon,
 .v-list-item__title {
   transition: color 0.2s ease-in-out, background-color 0.2s ease-in-out !important;
+}
+
+.user-details {
+  line-height: 1.4;
+}
+
+.role-info {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.v-chip {
+  font-size: 11px !important;
 }
 </style>

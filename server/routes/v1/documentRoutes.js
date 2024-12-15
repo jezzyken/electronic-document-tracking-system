@@ -4,6 +4,7 @@ const { Document, DocumentTracking } = require("../../models");
 const upload = require("../../middleware/upload");
 const { uploadToCloudinary } = require("../../utils/cloudinary");
 const { auth, authorize } = require("../../middleware/authMiddleware");
+const moment = require("moment");
 
 async function handleAttachmentUploads(files) {
   if (!files || files.length === 0) return [];
@@ -24,52 +25,88 @@ async function handleAttachmentUploads(files) {
   );
 }
 
+function formatDate(date) {
+  if (!date) return null;
+  return moment(date).format("YYYY-MM-DD");
+}
+
 router.get("/documents", auth, async (req, res) => {
   try {
+    const isAdmin = req.user.role.name === "Admin";
     const userDepartment = req.user.department;
 
-    const documentsInvolvedInTracking = await DocumentTracking.distinct(
-      "documentId",
-      {
-        $or: [
-          { fromDepartment: userDepartment },
-          { toDepartment: userDepartment },
-        ],
-      }
-    );
+    let documents;
 
-    const documents = await Document.find({
-      $or: [
-        { department: userDepartment },
-        { _id: { $in: documentsInvolvedInTracking } },
-      ],
-    })
-      .populate("user")
-      .populate("department")
-      .lean();
+    if (isAdmin) {
+      documents = await Document.find()
+        .sort({ _id: -1 })
+        .populate("user")
+        .populate("department")
+        .lean();
+    } else {
+      const documentsInvolvedInTracking = await DocumentTracking.distinct(
+        "documentId",
+        {
+          $or: [
+            { fromDepartment: userDepartment },
+            { toDepartment: userDepartment },
+          ],
+        }
+      );
+
+      documents = await Document.find({
+        $or: [
+          { department: userDepartment },
+          { _id: { $in: documentsInvolvedInTracking } },
+        ],
+      })
+        .sort({ _id: -1 })
+        .populate("user")
+        .populate("department")
+        .lean();
+    }
+
+    documents = documents.map((doc) => ({
+      ...doc,
+      dueDate: formatDate(doc.dueDate),
+    }));
 
     const documentsWithTracking = await Promise.all(
       documents.map(async (doc) => {
-        const isInvolvedInTracking = documentsInvolvedInTracking.some(
-          (id) => id.toString() === doc._id.toString()
-        );
+        let tracking;
 
-        const trackingQuery = isInvolvedInTracking
-          ? { documentId: doc._id }
-          : {
-              documentId: doc._id,
-              $or: [
-                { fromDepartment: userDepartment },
-                { toDepartment: userDepartment },
-              ],
-            };
+        if (isAdmin) {
+          tracking = await DocumentTracking.find({ documentId: doc._id })
+            .populate("fromDepartment")
+            .populate("toDepartment")
+            .populate("sentBy")
+            .populate("receivedBy")
+            .lean();
+        } else {
+          const isInvolvedInTracking = doc.tracking?.some(
+            (track) =>
+              track.fromDepartment._id.toString() ===
+                userDepartment.toString() ||
+              track.toDepartment._id.toString() === userDepartment.toString()
+          );
 
-        const tracking = await DocumentTracking.find(trackingQuery)
-          .populate("fromDepartment")
-          .populate("toDepartment")
-          .populate("sentBy")
-          .populate("receivedBy")
-          .lean();
+          const trackingQuery = isInvolvedInTracking
+            ? { documentId: doc._id }
+            : {
+                documentId: doc._id,
+                $or: [
+                  { fromDepartment: userDepartment },
+                  { toDepartment: userDepartment },
+                ],
+              };
+
+          tracking = await DocumentTracking.find(trackingQuery)
+            .populate("fromDepartment")
+            .populate("toDepartment")
+            .populate("sentBy")
+            .populate("receivedBy")
+            .lean();
+        }
 
         return { ...doc, tracking };
       })
@@ -233,6 +270,15 @@ router.patch(
     try {
       const { documentId, trackingId } = req.params;
       const { receivedBy, receivedAt } = req.body;
+
+      if (req.user.role.name !== "Admin") {
+        const tracking = await DocumentTracking.findById(trackingId);
+        if (
+          tracking.toDepartment.toString() !== req.user.department.toString()
+        ) {
+          throw new Error("User not authorized to receive this document");
+        }
+      }
 
       const updatedTracking = await DocumentTracking.findByIdAndUpdate(
         trackingId,

@@ -1,15 +1,19 @@
-<!-- DocumentTrackingPage.vue -->
 <template>
-  <v-container fluid>
+  <v-container fluid v-if="documentPermissions.canView">
     <v-card>
       <v-card-title>
         <v-row align="center" justify="space-between">
           <v-col cols="12" sm="4">
-            <v-btn color="primary" @click="showNewDocumentDialog = true">
+            <v-btn
+              v-if="documentPermissions.canCreate"
+              color="primary"
+              @click="showNewDocumentDialog = true"
+            >
               <v-icon left>mdi-plus</v-icon>
               New Document
             </v-btn>
           </v-col>
+
           <v-col cols="12" sm="4">
             <v-text-field
               v-model="search"
@@ -38,6 +42,7 @@
             :search="search"
             :items-per-page="10"
             class="elevation-1"
+            :loading="loading"
           >
             <template v-slot:item.status="{ item }">
               <v-chip :color="getStatusColor(item.status)" small dark>
@@ -56,6 +61,9 @@
               <v-tooltip bottom>
                 <template v-slot:activator="{ on, attrs }">
                   <v-btn
+                    v-if="
+                      canPerformDocumentAction('change_document_status', item)
+                    "
                     icon
                     small
                     class="mr-2"
@@ -120,6 +128,12 @@
                     @click="showUpdateForm = true"
                     class="ml-2"
                     :disabled="selectedDocument.status === 'Completed'"
+                    v-if="
+                      canPerformDocumentAction(
+                        'change_document_status',
+                        selectedDocument
+                      )
+                    "
                   >
                     <v-icon left>mdi-plus</v-icon>
                     {{
@@ -184,6 +198,13 @@
                           <v-row v-if="!track.receivedAt" class="mt-2">
                             <v-col>
                               <v-btn
+                                v-if="
+                                  canPerformDocumentAction(
+                                    'recieved_document',
+                                    selectedDocument,
+                                    index
+                                  )
+                                "
                                 color="primary"
                                 small
                                 @click="markAsReceived(index)"
@@ -234,7 +255,10 @@
                           <p class="mb-0">{{ track.comments }}</p>
 
                           <v-expansion-panels
-                            v-if="track.documents?.attachments?.length"
+                            v-if="
+                              documentPermissions.canViewAttachments &&
+                              track.documents?.attachments?.length
+                            "
                             flat
                           >
                             <v-expansion-panel>
@@ -365,6 +389,7 @@
 
               <v-col cols="12" md="6">
                 <v-file-input
+                  v-if="documentPermissions.canUpload"
                   v-model="trackingUpdate.attachments"
                   label="Attachments"
                   multiple
@@ -394,7 +419,8 @@
           </v-btn>
           <v-btn
             color="success"
-            :disabled="!formValid"
+            :disabled="!formValid || isSavingDocument"
+            :loading="isSavingDocument"
             @click="submitTrackingUpdate"
           >
             Submit Update
@@ -503,12 +529,18 @@
 
         <v-card-actions>
           <v-spacer></v-spacer>
-          <v-btn color="error" text @click="showNewDocumentDialog = false">
+          <v-btn
+            color="error"
+            text
+            @click="showNewDocumentDialog = false"
+            :disabled="isSavingDocument"
+          >
             Cancel
           </v-btn>
           <v-btn
             color="success"
-            :disabled="!newDocumentFormValid"
+            :disabled="!newDocumentFormValid || isSavingDocument"
+            :loading="isSavingDocument"
             @click="createNewDocument"
           >
             Create Document
@@ -539,10 +571,11 @@
 
 <script>
 import { mapState, mapGetters, mapActions } from "vuex";
+import { permissionMixin } from "@/mixins/permissionMixin";
 
 export default {
   name: "DocumentTrackingPage",
-
+  mixins: [permissionMixin],
   data: () => ({
     search: "",
     activeTab: 0,
@@ -589,6 +622,8 @@ export default {
       comments: "",
       attachments: [],
     },
+    userx: JSON.parse(localStorage.getItem("user")),
+    isSavingDocument: false,
   }),
 
   computed: {
@@ -602,7 +637,6 @@ export default {
 
     ...mapGetters("documents", [
       "documents",
-      "hasPermission",
       "documentsByStatus",
       "documentsByDepartment",
     ]),
@@ -628,33 +662,46 @@ export default {
       };
     },
 
-    canCreateDocument() {
-      return this.hasPermission("create");
-    },
-
-    canUpdateStatus() {
-      return this.hasPermission("change_document_status");
-    },
-
-    canUploadAttachments() {
-      return this.hasPermission("upload_attachments");
-    },
-
     filteredDocuments() {
-      const currentUser = JSON.parse(localStorage.getItem("user"));
-      const userDepartment = currentUser.department._id;
+      if (!this.documentPermissions.canView) return [];
 
       return this.documents.filter((doc) => {
-        if (doc.department._id === userDepartment) {
-          return true;
-        }
+        if (this.isDocumentEditor(doc)) return true;
 
-        return doc.tracking.some(
-          (track) =>
-            track.fromDepartment._id === userDepartment ||
-            track.toDepartment._id === userDepartment
-        );
+        return this.isInDocumentWorkflow(doc);
       });
+    },
+
+    documentPermissions() {
+      return {
+        canView: this.hasPermission("view"),
+        canCreate: this.hasPermission("create"),
+        canUpdate: this.hasPermission("update"),
+        canDelete: this.hasPermission("delete"),
+        canUpload: this.hasPermission("upload_attachments"),
+        canViewAttachments: this.hasPermission("view_attachments"),
+        canReceive: this.hasPermission("recieved_document"),
+      };
+    },
+
+    selectedDocumentPermissions() {
+      if (!this.selectedDocument) return {};
+
+      return {
+        canEdit: this.canPerformDocumentAction("update", this.selectedDocument),
+        canDelete: this.canPerformDocumentAction(
+          "delete",
+          this.selectedDocument
+        ),
+        canChangeStatus: this.canPerformDocumentAction(
+          "change_document_status",
+          this.selectedDocument
+        ),
+        canReceive: this.canPerformDocumentAction(
+          "recieved_document",
+          this.selectedDocument
+        ),
+      };
     },
   },
 
@@ -683,7 +730,14 @@ export default {
     async createNewDocument() {
       const user = JSON.parse(localStorage.getItem("user"));
 
+      if (!this.documentPermissions.canCreate) {
+        this.$toast.error("Insufficient permissions");
+        return;
+      }
+
       if (!this.$refs.newDocumentForm.validate()) return;
+
+      this.isSavingDocument = true;
 
       const currentUser = {
         _id: user._id,
@@ -737,13 +791,22 @@ export default {
         this.$refs.newDocumentForm.reset();
       } catch (error) {
         console.error("Failed to create document:", error);
+      } finally {
+        this.isSavingDocument = false;
       }
     },
 
     async submitTrackingUpdate() {
+      if (!this.selectedDocumentPermissions.canChangeStatus) {
+        console.error("Insufficient permissions");
+        return;
+      }
+
       if (!this.$refs.updateForm.validate()) return;
 
       const user = JSON.parse(localStorage.getItem("user"));
+
+      this.isSavingDocument = true;
 
       try {
         const data = {
@@ -754,10 +817,22 @@ export default {
         this.showUpdateForm = false;
       } catch (error) {
         console.log(error);
+      } finally {
+        this.isSavingDocument = false;
       }
     },
 
     markAsReceived(trackingIndex) {
+      if (
+        !this.canPerformDocumentAction(
+          "recieved_document",
+          this.selectedDocument
+        )
+      ) {
+        console.error("You do not have permission to receive this document");
+        return;
+      }
+
       this.selectedTrackingIndex = trackingIndex;
       this.showReceiveDialog = true;
     },
@@ -822,9 +897,6 @@ export default {
     },
 
     addTrackingDialog(document) {
-      if (document.status === "Completed") {
-        return;
-      }
       this.selectedDocument = document;
       this.showUpdateForm = true;
     },

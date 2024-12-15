@@ -1,93 +1,101 @@
-import dashboardService from "@/services/dashboardService";
+import dashboardService from '@/services/dashboardService';
 
 export default {
   namespaced: true,
-
   state: {
-    dashboardData: null,
-    recentActivities: [],
-    weeklyAttendance: [],
-    classDistribution: [],
+    stats: {
+      documentStats: {},
+      priorityStats: {},
+      requestStats: {},
+      recentActivities: []
+    },
+    documentTimeline: {
+      document: null,
+      timeline: []
+    },
+    documentRequests: {
+      requests: [],
+      pagination: {
+        currentPage: 1,
+        totalPages: 1,
+        totalItems: 0
+      },
+      statusCounts: {}
+    },
     loading: false,
-    error: null,
+    error: null
   },
 
   getters: {
-    totalStudents: (state) => state.dashboardData?.studentCount || 0,
-    totalTeachers: (state) => state.dashboardData?.teacherCount || 0,
-    totalClasses: (state) => state.dashboardData?.classCount || 0,
-    attendanceRate: (state) => state.dashboardData?.attendanceRate || 0,
-    isLoading: (state) => state.loading,
+    stats: state => state.stats,
+    documentTimeline: state => state.documentTimeline,
+    documentRequests: state => state.documentRequests,
+    loading: state => state.loading,
+    error: state => state.error
   },
 
   mutations: {
-    SET_DASHBOARD_DATA(state, data) {
-      state.dashboardData = data;
+    SET_STATS(state, stats) {
+      state.stats = stats;
     },
-    SET_RECENT_ACTIVITIES(state, activities) {
-      state.recentActivities = activities;
+    SET_DOCUMENT_TIMELINE(state, timeline) {
+      state.documentTimeline = timeline;
     },
-    SET_WEEKLY_ATTENDANCE(state, data) {
-      state.weeklyAttendance = data;
+    SET_DOCUMENT_REQUESTS(state, data) {
+      state.documentRequests = data;
     },
-    SET_CLASS_DISTRIBUTION(state, data) {
-      state.classDistribution = data;
-    },
-    SET_LOADING(state, status) {
-      state.loading = status;
+    SET_LOADING(state, loading) {
+      state.loading = loading;
     },
     SET_ERROR(state, error) {
       state.error = error;
     },
+    CLEAR_ERROR(state) {
+      state.error = null;
+    }
   },
 
   actions: {
-    async fetchDashboardData({ commit }) {
-      commit("SET_LOADING", true);
+    async fetchDashboardStats({ commit }) {
       try {
-        const { data } = await dashboardService.getDashboardData();
-        console.log(data)
-        commit("SET_DASHBOARD_DATA", data.data);
-        return data;
+        commit('SET_LOADING', true);
+        commit('CLEAR_ERROR');
+        const response = await dashboardService.getDashboardStats();
+        commit('SET_STATS', response.data);
       } catch (error) {
-        commit("SET_ERROR", error.message);
+        commit('SET_ERROR', error.response?.data?.message || 'Failed to fetch dashboard statistics');
         throw error;
       } finally {
-        commit("SET_LOADING", false);
+        commit('SET_LOADING', false);
       }
     },
 
-    async fetchRecentActivities({ commit }) {
+    async fetchDocumentTimeline({ commit }, documentId) {
       try {
-        const { data } = await dashboardService.getRecentActivities();
-        commit("SET_RECENT_ACTIVITIES", data);
-        return data;
+        commit('SET_LOADING', true);
+        commit('CLEAR_ERROR');
+        const response = await dashboardService.getDocumentTimeline(documentId);
+        commit('SET_DOCUMENT_TIMELINE', response.data);
       } catch (error) {
-        commit("SET_ERROR", error.message);
+        commit('SET_ERROR', error.response?.data?.message || 'Failed to fetch document timeline');
         throw error;
+      } finally {
+        commit('SET_LOADING', false);
       }
     },
 
-    async fetchWeeklyAttendance({ commit }) {
+    async fetchDocumentRequests({ commit }, params) {
       try {
-        const { data } = await dashboardService.getWeeklyAttendance();
-        commit("SET_WEEKLY_ATTENDANCE", data);
-        return data;
+        commit('SET_LOADING', true);
+        commit('CLEAR_ERROR');
+        const response = await dashboardService.getDocumentRequests(params);
+        commit('SET_DOCUMENT_REQUESTS', response.data);
       } catch (error) {
-        commit("SET_ERROR", error.message);
+        commit('SET_ERROR', error.response?.data?.message || 'Failed to fetch document requests');
         throw error;
+      } finally {
+        commit('SET_LOADING', false);
       }
-    },
-
-    async fetchClassDistribution({ commit }) {
-      try {
-        const { data } = await dashboardService.getClassDistribution();
-        commit("SET_CLASS_DISTRIBUTION", data);
-        return data;
-      } catch (error) {
-        commit("SET_ERROR", error.message);
-        throw error;
-      }
-    },
-  },
+    }
+  }
 };

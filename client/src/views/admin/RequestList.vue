@@ -7,48 +7,37 @@
 
       <v-divider></v-divider>
 
-      <v-toolbar flat class="px-4">
-        <v-row>
-          <v-col cols="12" md="3">
-            <v-text-field
-              v-model="filters.studentId"
-              label="Student ID"
-              prepend-inner-icon="mdi-account"
-              dense
-              outlined
-              rounded
-              hide-details
-              class="mt-6"
-              clearable
-            ></v-text-field>
-          </v-col>
-          <v-col cols="12" md="3">
-            <v-select
-              v-model="filters.status"
-              :items="statusOptions"
-              label="Status"
-              prepend-inner-icon="mdi-filter-variant"
-              dense
-              outlined
-              rounded
-              hide-details
-              class="mt-6"
-              clearable
-            ></v-select>
-          </v-col>
-        </v-row>
-      </v-toolbar>
-
       <v-data-table
         :headers="headers"
         :items="requests"
         :loading="loading"
+        :search="search"
         :footer-props="{
           'items-per-page-options': [5, 10, 15, 20],
           showFirstLastPage: true,
         }"
         class="elevation-0"
       >
+        <template v-slot:top>
+          <v-toolbar flat class="px-4 d-flex justify-end">
+            <v-text-field
+              v-model="search"
+              prepend-inner-icon="mdi-magnify"
+              label="Search requests..."
+              hide-details
+              dense
+              outlined
+              rounded
+              class="mt-6"
+              clearable
+              @click:clear="search = ''"
+              :class="{ 'focused-field': isFocused }"
+              @focus="isFocused = true"
+              @blur="isFocused = false"
+            ></v-text-field>
+          </v-toolbar>
+        </template>
+
         <template v-slot:item.status="{ item }">
           <v-chip
             :color="getStatusColor(item.status)"
@@ -303,10 +292,7 @@ export default {
         { text: "Actions", value: "actions", sortable: false },
       ],
       options: {},
-      filters: {
-        studentId: "",
-        status: "",
-      },
+      search: "",
       deleteDialog: false,
       updateDialog: false,
       viewDialog: false,
@@ -363,7 +349,6 @@ export default {
       const params = {
         page: this.options.page,
         limit: this.options.itemsPerPage,
-        ...this.filters,
       };
       await this.fetchRequests(params);
     },

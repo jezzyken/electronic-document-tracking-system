@@ -1,16 +1,13 @@
 import api from './api';
 
 export default {
-  getDashboardData() {
-    return api.get('/dashboard/data');
+  getDashboardStats() {
+    return api.get('/dashboard/stats');
   },
-  getRecentActivities() {
-    return api.get('/dashboard/activities');
+  getDocumentTimeline(documentId) {
+    return api.get(`/dashboard/timeline/${documentId}`);
   },
-  getWeeklyAttendance() {
-    return api.get('/dashboard/weekly-attendance');
-  },
-  getClassDistribution() {
-    return api.get('/dashboard/class-distribution');
+  getDocumentRequests(params) {
+    return api.get('/dashboard/requests', { params });
   }
 };
