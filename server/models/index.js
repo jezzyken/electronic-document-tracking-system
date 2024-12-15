@@ -5,4 +5,5 @@ module.exports = {
   DocumentTracking: require("./DocumentTracking"),
   Status: require("./Status"),
   Role: require("./Roles"),
+  DocumentRequest: require("./DocumentRequest"),
 };

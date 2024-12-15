@@ -11,8 +11,15 @@
             </v-btn>
           </v-col>
           <v-col cols="12" sm="4">
-            <v-text-field v-model="search" append-icon="mdi-magnify" label="Search Documents" single-line hide-details
-              dense outlined></v-text-field>
+            <v-text-field
+              v-model="search"
+              append-icon="mdi-magnify"
+              label="Search Documents"
+              single-line
+              hide-details
+              dense
+              outlined
+            ></v-text-field>
           </v-col>
         </v-row>
       </v-card-title>
@@ -25,7 +32,13 @@
 
       <v-tabs-items v-model="activeTab">
         <v-tab-item>
-          <v-data-table :headers="headers" :items="documents" :search="search" :items-per-page="10" class="elevation-1">
+          <v-data-table
+            :headers="headers"
+            :items="documents"
+            :search="search"
+            :items-per-page="10"
+            class="elevation-1"
+          >
             <template v-slot:item.status="{ item }">
               <v-chip :color="getStatusColor(item.status)" small dark>
                 {{ item.status }}
@@ -42,8 +55,15 @@
             <template v-slot:item.actions="{ item }">
               <v-tooltip bottom>
                 <template v-slot:activator="{ on, attrs }">
-                  <v-btn icon small class="mr-2" v-bind="attrs" v-on="on" @click="addTrackingDialog(item)"
-                    :disabled="item.status === 'Completed'">
+                  <v-btn
+                    icon
+                    small
+                    class="mr-2"
+                    v-bind="attrs"
+                    v-on="on"
+                    @click="addTrackingDialog(item)"
+                    :disabled="item.status === 'Completed'"
+                  >
                     <v-icon small>mdi-plus-circle</v-icon>
                   </v-btn>
                 </template>
@@ -58,7 +78,14 @@
 
               <v-tooltip bottom>
                 <template v-slot:activator="{ on, attrs }">
-                  <v-btn icon small class="mr-2" v-bind="attrs" v-on="on" @click="viewHistory(item)">
+                  <v-btn
+                    icon
+                    small
+                    class="mr-2"
+                    v-bind="attrs"
+                    v-on="on"
+                    @click="viewHistory(item)"
+                  >
                     <v-icon small>mdi-history</v-icon>
                   </v-btn>
                 </template>
@@ -67,7 +94,13 @@
 
               <v-tooltip bottom>
                 <template v-slot:activator="{ on, attrs }">
-                  <v-btn icon small v-bind="attrs" v-on="on" @click="viewDetails(item)">
+                  <v-btn
+                    icon
+                    small
+                    v-bind="attrs"
+                    v-on="on"
+                    @click="viewDetails(item)"
+                  >
                     <v-icon small>mdi-eye</v-icon>
                   </v-btn>
                 </template>
@@ -82,8 +115,12 @@
             <v-card-text v-if="selectedDocument">
               <v-row class="mb-4">
                 <v-col>
-                  <v-btn color="primary" @click="showUpdateForm = true" class="ml-2"
-                    :disabled="selectedDocument.status === 'Completed'">
+                  <v-btn
+                    color="primary"
+                    @click="showUpdateForm = true"
+                    class="ml-2"
+                    :disabled="selectedDocument.status === 'Completed'"
+                  >
                     <v-icon left>mdi-plus</v-icon>
                     {{
                       selectedDocument.status === "Completed"
@@ -105,7 +142,12 @@
                       </p>
                       <p>
                         <strong>Status:</strong>
-                        <v-chip :color="getStatusColor(selectedDocument.status)" x-small dark class="ml-2">
+                        <v-chip
+                          :color="getStatusColor(selectedDocument.status)"
+                          x-small
+                          dark
+                          class="ml-2"
+                        >
                           {{ selectedDocument.status }}
                         </v-chip>
                       </p>
@@ -122,8 +164,12 @@
                 </v-col>
                 <v-col cols="12" md="9">
                   <v-timeline dense>
-                    <v-timeline-item v-for="(track, index) in selectedDocument.tracking" :key="index"
-                      :color="getStatusColor(track.status)" small>
+                    <v-timeline-item
+                      v-for="(track, index) in selectedDocument.tracking"
+                      :key="index"
+                      :color="getStatusColor(track.status)"
+                      small
+                    >
                       <template v-slot:opposite>
                         <span class="caption">{{
                           formatDate(track.sentAt)
@@ -137,7 +183,11 @@
                         <v-card-text>
                           <v-row v-if="!track.receivedAt" class="mt-2">
                             <v-col>
-                              <v-btn color="primary" small @click="markAsReceived(index)">
+                              <v-btn
+                                color="primary"
+                                small
+                                @click="markAsReceived(index)"
+                              >
                                 <v-icon left small>mdi-check-circle</v-icon>
                                 Mark as Received
                               </v-btn>
@@ -173,13 +223,20 @@
                           </v-row>
 
                           <div class="mb-2">
-                            <v-chip :color="getStatusColor(track.status)" x-small dark>
+                            <v-chip
+                              :color="getStatusColor(track.status)"
+                              x-small
+                              dark
+                            >
                               {{ track.status }}
                             </v-chip>
                           </div>
                           <p class="mb-0">{{ track.comments }}</p>
 
-                          <v-expansion-panels v-if="track.documents?.attachments?.length" flat>
+                          <v-expansion-panels
+                            v-if="track.documents?.attachments?.length"
+                            flat
+                          >
                             <v-expansion-panel>
                               <v-expansion-panel-header>
                                 Attachments ({{
@@ -188,7 +245,10 @@
                               </v-expansion-panel-header>
                               <v-expansion-panel-content>
                                 <v-list dense>
-                                  <v-list-item v-for="att in track.documents.attachments" :key="att._id">
+                                  <v-list-item
+                                    v-for="att in track.documents.attachments"
+                                    :key="att._id"
+                                  >
                                     <v-list-item-icon>
                                       <v-icon small>mdi-file-document</v-icon>
                                     </v-list-item-icon>
@@ -198,7 +258,13 @@
                                       }}</v-list-item-title>
                                     </v-list-item-content>
                                     <v-list-item-action>
-                                      <v-btn text x-small color="primary" :href="att.fileUrl">
+                                      <v-btn
+                                        text
+                                        x-small
+                                        color="primary"
+                                        :href="att.fileUrl"
+                                        download
+                                      >
                                         View
                                       </v-btn>
                                     </v-list-item-action>
@@ -233,7 +299,10 @@
                   <v-card outlined>
                     <v-card-title>General Information</v-card-title>
                     <v-list dense>
-                      <v-list-item v-for="(value, key) in documentDetails" :key="key">
+                      <v-list-item
+                        v-for="(value, key) in documentDetails"
+                        :key="key"
+                      >
                         <v-list-item-content>
                           <v-list-item-title>{{ key }}</v-list-item-title>
                           <v-list-item-subtitle>{{
@@ -260,30 +329,59 @@
           <v-form ref="updateForm" v-model="formValid">
             <v-row>
               <v-col cols="12" md="6">
-                <v-select v-model="trackingUpdate.fromDepartment" :items="departmentList" item-text="name"
-                  item-value="_id" label="From Department" required
-                  :rules="[(v) => !!v || 'From Department is required']"></v-select>
+                <v-select
+                  v-model="trackingUpdate.fromDepartment"
+                  :items="departmentList"
+                  item-text="name"
+                  item-value="_id"
+                  label="From Department"
+                  required
+                  :rules="[(v) => !!v || 'From Department is required']"
+                ></v-select>
               </v-col>
 
               <v-col cols="12" md="6">
-                <v-select v-model="trackingUpdate.toDepartment" :items="departmentList" item-text="name"
-                  item-value="_id" label="To Department" required
-                  :rules="[(v) => !!v || 'To Department is required']"></v-select>
+                <v-select
+                  v-model="trackingUpdate.toDepartment"
+                  :items="departmentList"
+                  item-text="name"
+                  item-value="_id"
+                  label="To Department"
+                  required
+                  :rules="[(v) => !!v || 'To Department is required']"
+                ></v-select>
               </v-col>
 
               <v-col cols="12" md="6">
-                <v-select v-model="trackingUpdate.status" :items="statuses" item-text="name" label="Status" required
-                  :rules="[(v) => !!v || 'Status is required']"></v-select>
+                <v-select
+                  v-model="trackingUpdate.status"
+                  :items="statuses"
+                  item-text="name"
+                  label="Status"
+                  required
+                  :rules="[(v) => !!v || 'Status is required']"
+                ></v-select>
               </v-col>
 
               <v-col cols="12" md="6">
-                <v-file-input v-model="trackingUpdate.attachments" label="Attachments" multiple chips counter
-                  show-size></v-file-input>
+                <v-file-input
+                  v-model="trackingUpdate.attachments"
+                  label="Attachments"
+                  multiple
+                  chips
+                  counter
+                  show-size
+                ></v-file-input>
               </v-col>
 
               <v-col cols="12">
-                <v-textarea v-model="trackingUpdate.comments" label="Comments" required
-                  :rules="[(v) => !!v || 'Comments are required']" rows="3"></v-textarea>
+                <v-textarea
+                  v-model="trackingUpdate.comments"
+                  label="Comments"
+                  required
+                  :rules="[(v) => !!v || 'Comments are required']"
+                  rows="3"
+                ></v-textarea>
               </v-col>
             </v-row>
           </v-form>
@@ -294,7 +392,11 @@
           <v-btn color="error" text @click="showUpdateForm = false">
             Cancel
           </v-btn>
-          <v-btn color="success" :disabled="!formValid" @click="submitTrackingUpdate">
+          <v-btn
+            color="success"
+            :disabled="!formValid"
+            @click="submitTrackingUpdate"
+          >
             Submit Update
           </v-btn>
         </v-card-actions>
@@ -308,46 +410,92 @@
           <v-form ref="newDocumentForm" v-model="newDocumentFormValid">
             <v-row>
               <v-col cols="12">
-                <v-text-field v-model="newDocument.title" label="Document Title" required
-                  :rules="[(v) => !!v || 'Title is required']"></v-text-field>
+                <v-text-field
+                  v-model="newDocument.title"
+                  label="Document Title"
+                  required
+                  :rules="[(v) => !!v || 'Title is required']"
+                ></v-text-field>
               </v-col>
 
               <v-col cols="12">
-                <v-textarea v-model="newDocument.description" label="Description" required
-                  :rules="[(v) => !!v || 'Description is required']"></v-textarea>
+                <v-textarea
+                  v-model="newDocument.description"
+                  label="Description"
+                  required
+                  :rules="[(v) => !!v || 'Description is required']"
+                ></v-textarea>
               </v-col>
 
               <v-col cols="12" md="6">
-                <v-select v-model="newDocument.toDepartment" :items="departmentList" item-text="name" item-value="_id"
-                  label="Forward To Department" required :rules="[
+                <v-select
+                  v-model="newDocument.toDepartment"
+                  :items="departmentList"
+                  item-text="name"
+                  item-value="_id"
+                  label="Forward To Department"
+                  required
+                  :rules="[
                     (v) => !!v || 'Please select destination department',
-                  ]"></v-select>
+                  ]"
+                ></v-select>
               </v-col>
 
               <v-col cols="12" md="6">
-                <v-select v-model="newDocument.priority" :items="['High', 'Medium', 'Low']" label="Priority" required
-                  :rules="[(v) => !!v || 'Priority is required']"></v-select>
+                <v-select
+                  v-model="newDocument.priority"
+                  :items="['High', 'Medium', 'Low']"
+                  label="Priority"
+                  required
+                  :rules="[(v) => !!v || 'Priority is required']"
+                ></v-select>
               </v-col>
 
               <v-col cols="12" md="6">
-                <v-menu v-model="dueDateMenu" :close-on-content-click="false" transition="scale-transition" offset-y
-                  min-width="auto">
+                <v-menu
+                  v-model="dueDateMenu"
+                  :close-on-content-click="false"
+                  transition="scale-transition"
+                  offset-y
+                  min-width="auto"
+                >
                   <template v-slot:activator="{ on, attrs }">
-                    <v-text-field v-model="newDocument.dueDate" label="Due Date" readonly v-bind="attrs" v-on="on"
-                      required :rules="[(v) => !!v || 'Due Date is required']"></v-text-field>
+                    <v-text-field
+                      v-model="newDocument.dueDate"
+                      label="Due Date"
+                      readonly
+                      v-bind="attrs"
+                      v-on="on"
+                      required
+                      :rules="[(v) => !!v || 'Due Date is required']"
+                    ></v-text-field>
                   </template>
-                  <v-date-picker v-model="newDocument.dueDate" @input="dueDateMenu = false"></v-date-picker>
+                  <v-date-picker
+                    v-model="newDocument.dueDate"
+                    @input="dueDateMenu = false"
+                  ></v-date-picker>
                 </v-menu>
               </v-col>
 
               <v-col cols="12">
-                <v-textarea v-model="newDocument.comments" label="Initial Comments" rows="3" required
-                  :rules="[(v) => !!v || 'Initial comments are required']"></v-textarea>
+                <v-textarea
+                  v-model="newDocument.comments"
+                  label="Initial Comments"
+                  rows="3"
+                  required
+                  :rules="[(v) => !!v || 'Initial comments are required']"
+                ></v-textarea>
               </v-col>
 
               <v-col cols="12">
-                <v-file-input v-model="newDocument.attachments" label="Documents" multiple chips counter
-                  show-size></v-file-input>
+                <v-file-input
+                  v-model="newDocument.attachments"
+                  label="Documents"
+                  multiple
+                  chips
+                  counter
+                  show-size
+                ></v-file-input>
               </v-col>
             </v-row>
           </v-form>
@@ -358,7 +506,11 @@
           <v-btn color="error" text @click="showNewDocumentDialog = false">
             Cancel
           </v-btn>
-          <v-btn color="success" :disabled="!newDocumentFormValid" @click="createNewDocument">
+          <v-btn
+            color="success"
+            :disabled="!newDocumentFormValid"
+            @click="createNewDocument"
+          >
             Create Document
           </v-btn>
         </v-card-actions>
@@ -396,6 +548,7 @@ export default {
     activeTab: 0,
     selectedDocument: null,
     headers: [
+      { text: "Tracking No.", value: "trackingNumber" },
       { text: "Title", value: "title" },
       { text: "Status", value: "status" },
       { text: "Priority", value: "priority" },
@@ -486,6 +639,23 @@ export default {
     canUploadAttachments() {
       return this.hasPermission("upload_attachments");
     },
+
+    filteredDocuments() {
+      const currentUser = JSON.parse(localStorage.getItem("user"));
+      const userDepartment = currentUser.department._id;
+
+      return this.documents.filter((doc) => {
+        if (doc.department._id === userDepartment) {
+          return true;
+        }
+
+        return doc.tracking.some(
+          (track) =>
+            track.fromDepartment._id === userDepartment ||
+            track.toDepartment._id === userDepartment
+        );
+      });
+    },
   },
 
   methods: {
@@ -522,14 +692,14 @@ export default {
 
       const attachments = this.newDocument.attachments
         ? this.newDocument.attachments.map((file, index) => ({
-          _id: `att_init_${Date.now()}_${index}`,
-          title: file.name,
-          fileUrl: URL.createObjectURL(file),
-          fileType: file.type,
-          fileSize: file.size,
-          uploadedBy: currentUser._id,
-          uploadedAt: new Date().toISOString(),
-        }))
+            _id: `att_init_${Date.now()}_${index}`,
+            title: file.name,
+            fileUrl: URL.createObjectURL(file),
+            fileType: file.type,
+            fileSize: file.size,
+            uploadedBy: currentUser._id,
+            uploadedAt: new Date().toISOString(),
+          }))
         : [];
 
       const newDoc = {

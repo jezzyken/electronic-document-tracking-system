@@ -1,145 +1,164 @@
 const express = require("express");
 const router = express.Router();
-const { Document } = require("../../models");
-const { DocumentTracking } = require("../../models");
+const { Document, DocumentTracking } = require("../../models");
 const upload = require("../../middleware/upload");
 const { uploadToCloudinary } = require("../../utils/cloudinary");
+const { auth, authorize } = require("../../middleware/authMiddleware");
 
-router.get("/documents", async (req, res) => {
+async function handleAttachmentUploads(files) {
+  if (!files || files.length === 0) return [];
+
+  return Promise.all(
+    files.map(async (file) => {
+      const uploadResult = await uploadToCloudinary(
+        file.path,
+        file.originalname
+      );
+      return {
+        title: file.originalname,
+        fileUrl: uploadResult.url,
+        fileType: file.mimetype,
+        fileSize: file.size,
+      };
+    })
+  );
+}
+
+router.get("/documents", auth, async (req, res) => {
   try {
-    const documents = await Document.find()
+    const userDepartment = req.user.department;
+
+    const documentsInvolvedInTracking = await DocumentTracking.distinct(
+      "documentId",
+      {
+        $or: [
+          { fromDepartment: userDepartment },
+          { toDepartment: userDepartment },
+        ],
+      }
+    );
+
+    const documents = await Document.find({
+      $or: [
+        { department: userDepartment },
+        { _id: { $in: documentsInvolvedInTracking } },
+      ],
+    })
       .populate("user")
       .populate("department")
       .lean();
 
     const documentsWithTracking = await Promise.all(
       documents.map(async (doc) => {
-        const tracking = await DocumentTracking.find({ documentId: doc._id })
+        const isInvolvedInTracking = documentsInvolvedInTracking.some(
+          (id) => id.toString() === doc._id.toString()
+        );
+
+        const trackingQuery = isInvolvedInTracking
+          ? { documentId: doc._id }
+          : {
+              documentId: doc._id,
+              $or: [
+                { fromDepartment: userDepartment },
+                { toDepartment: userDepartment },
+              ],
+            };
+
+        const tracking = await DocumentTracking.find(trackingQuery)
           .populate("fromDepartment")
           .populate("toDepartment")
           .populate("sentBy")
           .populate("receivedBy")
           .lean();
+
         return { ...doc, tracking };
       })
     );
 
-    console.log(documentsWithTracking);
-
     res.json(documentsWithTracking);
   } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-router.post("/documents", upload.array("attachments"), async (req, res) => {
-  const session = await Document.startSession();
-  session.startTransaction();
-
-  try {
-    const documentData = JSON.parse(req.body.documents);
-    const tracking = JSON.parse(req.body.tracking);
-
-    const document = new Document({
-      title: documentData.title,
-      description: documentData.description,
-      user: documentData.user,
-      status: "Under Review",
-      priority: documentData.priority,
-      dueDate: documentData.dueDate,
-      department: documentData.department,
-      createdAt: new Date(),
-    });
-    await document.save({ session });
-
-    if (req.files && req.files.length > 0) {
-      const attachments = await Promise.all(
-        req.files.map(async (file, index) => {
-          const uploadResult = await uploadToCloudinary(
-            file.path,
-            file.originalname
-          );
-          return {
-            title: file.originalname,
-            fileUrl: uploadResult.url,
-            fileType: file.mimetype,
-            fileSize: file.size,
-          };
-        })
-      );
-
-      const trackingData = {
-        documentId: document._id,
-        fromDepartment: documentData.department,
-        toDepartment: tracking.toDepartment,
-        sentBy: documentData.user,
-        sentAt: new Date(),
-        receivedBy: null,
-        receivedAt: null,
-        status: "Under Review",
-        comments: tracking.comments,
-        documents: {
-          attachments,
-        },
-      };
-
-      const documentTracking = new DocumentTracking(trackingData);
-      await documentTracking.save({ session });
-    }
-
-    await session.commitTransaction();
-
-    const completeDocument = await Document.findById(document._id)
-      .populate("user")
-      .populate("department")
-      .lean();
-
-    const trackingResult = await DocumentTracking.find({
-      documentId: document._id,
-    })
-      .populate("fromDepartment")
-      .populate("toDepartment")
-      .populate("sentBy")
-      .populate("receivedBy")
-      .lean();
-
-    res.status(201).json({ ...completeDocument, tracking: trackingResult });
-  } catch (error) {
-    await session.abortTransaction();
-    res.status(400).json({ error: error.message });
-  } finally {
-    session.endSession();
+    console.error("Error fetching documents:", error);
+    res.status(500).json({ error: "Failed to fetch documents" });
   }
 });
 
 router.post(
-  "/documents/:id/tracking",
+  "/documents",
+  auth,
   upload.array("attachments"),
   async (req, res) => {
     const session = await Document.startSession();
     session.startTransaction();
 
     try {
-      const documentId = req.params.id;
+      const documentData = JSON.parse(req.body.documents);
+      const tracking = JSON.parse(req.body.tracking);
+
+      const document = new Document({
+        title: documentData.title,
+        description: documentData.description,
+        user: documentData.user,
+        status: "Under Review",
+        priority: documentData.priority,
+        dueDate: documentData.dueDate,
+        department: documentData.department,
+      });
+      await document.save({ session });
+
+      const attachments = await handleAttachmentUploads(req.files);
+
+      const trackingData = new DocumentTracking({
+        documentId: document._id,
+        fromDepartment: documentData.department,
+        toDepartment: tracking.toDepartment,
+        sentBy: documentData.user,
+        sentAt: new Date(),
+        status: "Under Review",
+        comments: tracking.comments,
+        documents: { attachments },
+      });
+      await trackingData.save({ session });
+
+      await session.commitTransaction();
+
+      const completeDocument = await Document.findById(document._id)
+        .populate("user")
+        .populate("department")
+        .lean();
+
+      const trackingResult = await DocumentTracking.find({
+        documentId: document._id,
+      })
+        .populate("fromDepartment")
+        .populate("toDepartment")
+        .populate("sentBy")
+        .populate("receivedBy")
+        .lean();
+
+      res.status(201).json({ ...completeDocument, tracking: trackingResult });
+    } catch (error) {
+      await session.abortTransaction();
+      console.error("Error creating document:", error);
+      res.status(400).json({ error: "Failed to create document" });
+    } finally {
+      session.endSession();
+    }
+  }
+);
+
+router.post(
+  "/documents/:id/tracking",
+  auth,
+  upload.array("attachments"),
+  async (req, res) => {
+    const session = await Document.startSession();
+    session.startTransaction();
+
+    try {
+      const { id: documentId } = req.params;
       const trackingData = req.body;
 
-      let attachments = [];
-      if (req.files && req.files.length > 0) {
-        attachments = await Promise.all(
-          req.files.map(async (file, index) => {
-            const uploadResult = await uploadToCloudinary(
-              file.path,
-              file.originalname
-            );
-            return {
-              title: file.originalname,
-              fileUrl: uploadResult.url,
-              fileType: file.mimetype,
-              fileSize: file.size,
-            };
-          })
-        );
-      }
+      const attachments = await handleAttachmentUploads(req.files);
 
       const tracking = new DocumentTracking({
         documentId,
@@ -147,13 +166,9 @@ router.post(
         toDepartment: trackingData.toDepartment,
         sentBy: trackingData.sentBy,
         sentAt: new Date(),
-        receivedBy: null,
-        receivedAt: null,
         status: trackingData.status,
         comments: trackingData.comments,
-        documents: {
-          attachments,
-        },
+        documents: { attachments },
       });
 
       await tracking.save({ session });
@@ -175,14 +190,15 @@ router.post(
       res.status(201).json(populatedTracking);
     } catch (error) {
       await session.abortTransaction();
-      res.status(400).json({ error: error.message });
+      console.error("Error adding tracking:", error);
+      res.status(400).json({ error: "Failed to add tracking" });
     } finally {
       session.endSession();
     }
   }
 );
 
-router.get("/documents/:id", async (req, res) => {
+router.get("/documents/:id", auth, async (req, res) => {
   try {
     const document = await Document.findById(req.params.id)
       .populate("user")
@@ -202,12 +218,14 @@ router.get("/documents/:id", async (req, res) => {
 
     res.json({ ...document, tracking });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error("Error fetching document:", error);
+    res.status(500).json({ error: "Failed to fetch document" });
   }
 });
 
 router.patch(
   "/documents/:documentId/tracking/:trackingId",
+  auth,
   async (req, res) => {
     const session = await Document.startSession();
     session.startTransaction();
@@ -218,10 +236,7 @@ router.patch(
 
       const updatedTracking = await DocumentTracking.findByIdAndUpdate(
         trackingId,
-        {
-          receivedBy,
-          receivedAt,
-        },
+        { receivedBy, receivedAt },
         {
           new: true,
           session,
@@ -241,7 +256,8 @@ router.patch(
       res.json(updatedTracking);
     } catch (error) {
       await session.abortTransaction();
-      res.status(400).json({ error: error.message });
+      console.error("Error updating tracking:", error);
+      res.status(400).json({ error: "Failed to update tracking" });
     } finally {
       session.endSession();
     }
