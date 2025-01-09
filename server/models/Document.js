@@ -44,7 +44,6 @@ const documentSchema = new Schema(
     department: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Department",
-      required: true,
     },
   },
   {

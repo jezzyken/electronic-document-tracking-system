@@ -741,7 +741,7 @@ export default {
 
       const currentUser = {
         _id: user._id,
-        department: user.department._id,
+        department: user.department?._id,
       };
 
       const attachments = this.newDocument.attachments
