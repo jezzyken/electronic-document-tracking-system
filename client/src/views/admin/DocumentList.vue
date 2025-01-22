@@ -498,6 +498,7 @@
                   </template>
                   <v-date-picker
                     v-model="newDocument.dueDate"
+                    :min="new Date().toISOString().substr(0,10)"
                     @input="dueDateMenu = false"
                   ></v-date-picker>
                 </v-menu>
@@ -616,7 +617,7 @@ export default {
     },
     selectedTrackingIndex: null,
     trackingUpdate: {
-      fromDepartment: "",
+      fromDepartment: JSON.parse(localStorage.getItem("user")).department._id,
       toDepartment: "",
       status: "",
       comments: "",

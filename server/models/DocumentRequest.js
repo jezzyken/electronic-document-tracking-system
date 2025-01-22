@@ -32,10 +32,12 @@ const DocumentRequestSchema = new Schema(
         required: true,
       },
     ],
+    otherDocumentType: String,
     purpose: {
       type: String,
       required: true,
     },
+    otherPurpose: String,
     notes: String,
     status: {
       type: String,

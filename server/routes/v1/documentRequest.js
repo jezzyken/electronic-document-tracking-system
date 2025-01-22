@@ -10,7 +10,9 @@ router.post("/", async (req, res) => {
       email: req.body.email,
       phone: req.body.phone,
       requestedDocuments: req.body.requestedDocuments,
+      otherDocumentType: req.body.otherDocumentType,
       purpose: req.body.purpose,
+      otherPurpose: req.body.otherPurpose,
       notes: req.body.notes,
     });
 
@@ -95,11 +97,13 @@ router.put("/:trackingNumber", async (req, res) => {
   try {
     const allowedUpdates = [
       "fullName",
-      "email",
+      "email", 
       "phone",
       "requestedDocuments",
+      "otherDocumentType",
       "purpose",
-      "notes",
+      "otherPurpose",
+      "notes"
     ];
     const updates = Object.keys(req.body)
       .filter((key) => allowedUpdates.includes(key))

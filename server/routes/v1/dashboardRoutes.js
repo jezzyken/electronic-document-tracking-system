@@ -63,7 +63,7 @@ router.get("/stats", auth, async (req, res) => {
       } : {}
     )
       .sort({ createdAt: -1 })
-      .limit(10)
+      .limit(5)
       .populate('documentId')
       .populate('fromDepartment')
       .populate('toDepartment')

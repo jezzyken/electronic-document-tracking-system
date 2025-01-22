@@ -18,7 +18,7 @@
           <v-btn text to="/">Home</v-btn>
           <v-btn text to="/track">Track Document</v-btn>
           <v-btn text to="/request">Request Document</v-btn>
-          <v-btn text to="/login" color="primary">Admin Login</v-btn>
+          <v-btn text to="/login" color="primary">Login</v-btn>
         </div>
 
         <v-app-bar-nav-icon 
@@ -60,7 +60,7 @@
           <v-list-item-icon>
             <v-icon>mdi-login</v-icon>
           </v-list-item-icon>
-          <v-list-item-title>Admin Login</v-list-item-title>
+          <v-list-item-title>Login</v-list-item-title>
         </v-list-item>
       </v-list>
     </v-navigation-drawer>

@@ -180,7 +180,7 @@ export default {
         to: "/admin/dashboard",
       },
       // { title: "Upload", icon: "mdi-upload", to: "/admin/uploads" },
-      { title: "Request Page", icon: "mdi-clipboard-text-outline", to: "/" },
+      { title: "Student Request Page", icon: "mdi-clipboard-text-outline", to: "/" },
       {
         title: "Documents",
         icon: "mdi-file-document-multiple",

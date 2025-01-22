@@ -100,6 +100,22 @@
                               ></v-checkbox>
                             </v-col>
                           </v-row>
+
+                          <v-row>
+                            <v-col cols="12" md="6">
+                              <v-text-field
+                                v-if="
+                                  formData.requestedDocuments.includes('Others')
+                                "
+                                v-model="formData.otherDocumentType"
+                                label="Please specify other document type"
+                                :rules="rules.required"
+                                outlined
+                                dense
+                              ></v-text-field>
+                            </v-col>
+                          </v-row>
+
                           <v-alert
                             v-if="formData.requestedDocuments.length === 0"
                             type="warning"
@@ -125,12 +141,24 @@
 
                       <v-col cols="12" md="6">
                         <v-text-field
+                          v-if="formData.purpose === 'Others'"
+                          v-model="formData.otherPurpose"
+                          label="Please specify other purpose"
+                          :rules="rules.required"
+                          outlined
+                          dense
+                        ></v-text-field>
+                      </v-col>
+
+                      <v-col cols="12" md="12">
+                        <v-textarea
                           v-model="formData.notes"
                           label="Additional Notes"
                           outlined
                           dense
                           placeholder="Enter any additional information or special requirements"
-                        ></v-text-field>
+                          rows="2"
+                        ></v-textarea>
                       </v-col>
                     </v-row>
                     <v-btn text @click="currentStep = 1">Back</v-btn>
@@ -279,14 +307,15 @@ export default {
       "Form 137",
       "Certificate of Enrollment",
       "Course Description",
-      "True Copy of Grades",
+      "Certified True Copy",
+      "Others",
     ],
     purposes: [
       "Employment",
       "Further Education",
       "Scholarship Application",
       "Personal Records",
-      "Other",
+      "Others",
     ],
   }),
 
@@ -365,6 +394,8 @@ export default {
         documentType: "",
         purpose: "",
         notes: "",
+        otherDocumentType: "",
+        otherPurpose: "",
       };
     },
   },

@@ -76,14 +76,16 @@
                 class="mr-2"
                 v-bind="attrs"
                 v-on="on"
-                :disabled="item.status === 'completed'"
+                :disabled="
+                  ['completed', 'cancelled', 'rejected'].includes(item.status)
+                "
               >
                 <v-icon small>mdi-update</v-icon>
               </v-btn>
             </template>
             <span>{{
-              item.status === "completed"
-                ? "Cannot update completed requests"
+              ["completed", "cancelled", "rejected"].includes(item.status)
+                ? `Cannot update ${item.status} requests`
                 : "Update Status"
             }}</span>
           </v-tooltip>
@@ -183,6 +185,10 @@
             </v-col>
             <v-col cols="6">
               <p><strong>Purpose:</strong> {{ selectedRequest.purpose }}</p>
+              <p v-if="selectedRequest.purpose === 'Others'">
+                <strong>Other Purpose:</strong>
+                {{ selectedRequest.otherPurpose }}
+              </p>
               <p><strong>Requested Documents:</strong></p>
               <ul>
                 <li
@@ -190,6 +196,11 @@
                   :key="doc"
                 >
                   {{ doc }}
+                  <span v-if="doc === 'Others'">
+                    <br />
+                    <strong>Other Document Type:</strong>
+                    {{ selectedRequest.otherDocumentType }}
+                  </span>
                 </li>
               </ul>
               <p><strong>Notes:</strong> {{ selectedRequest.notes }}</p>
@@ -357,8 +368,11 @@ export default {
       this.viewDialog = true;
     },
     openUpdateDialog(request) {
-      if (request.status === "completed") {
-        this.showSnackbar("Completed requests cannot be updated", "warning");
+      if (["completed", "cancelled", "rejected"].includes(request.status)) {
+        this.showSnackbar(
+          `${request.status} requests cannot be updated`,
+          "warning"
+        );
         return;
       }
       this.selectedRequest = request;
