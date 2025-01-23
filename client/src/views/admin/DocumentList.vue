@@ -14,6 +14,7 @@
             </v-btn>
           </v-col>
 
+
           <v-col cols="12" sm="4">
             <v-text-field
               v-model="search"
@@ -617,7 +618,7 @@ export default {
     },
     selectedTrackingIndex: null,
     trackingUpdate: {
-      fromDepartment: JSON.parse(localStorage.getItem("user")).department._id,
+      fromDepartment: JSON.parse(localStorage.getItem("user"))?.department?._id || null,
       toDepartment: "",
       status: "",
       comments: "",
