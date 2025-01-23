@@ -231,7 +231,7 @@ export default {
         ],
       },
       // { title: "Settings", icon: "mdi-cog", to: "/admin/settings" },
-      { title: "Reports", icon: "mdi-chart-box", to: "/admin/reports" },
+      // { title: "Reports", icon: "mdi-chart-box", to: "/admin/reports" },
     ],
     accountMenu: [
       // {
